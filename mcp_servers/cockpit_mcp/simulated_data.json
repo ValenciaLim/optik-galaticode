@@ -1,0 +1,156 @@
+{
+    "prompts": {
+        "prompt_v1": {
+            "name": "Prompt Variant A",
+            "text": "As an assistant, your goal is to be concise."
+        },
+        "prompt_v2": {
+            "name": "Prompt Variant B",
+            "text": "You are a laconic assistant. Be brief."
+        },
+        "prompt_v3": {
+            "name": "Prompt Variant C",
+            "text": "You are an AI assistant. Provide short answers."
+        },
+        "prompt_v4": {
+            "name": "Prompt Variant D (Winning)",
+            "text": "You are a helpful assistant. Answer concisely."
+        }
+    },
+    "traces": {
+        "prompt_v1": [
+            {
+                "type": "llm_call",
+                "input": "What is the capital of France?",
+                "output": "Paris.",
+                "duration_ms": 150
+            },
+            {
+                "type": "tool_call",
+                "tool": "search",
+                "input": "Annual rainfall in Amazon",
+                "output": "{'rainfall_mm': 2300}",
+                "duration_ms": 450
+            }
+        ],
+        "prompt_v2": [
+            {
+                "type": "llm_call",
+                "input": "What is the capital of France?",
+                "output": "Paris is the capital of France.",
+                "duration_ms": 250,
+                "metadata": {
+                    "warning": "too verbose"
+                }
+            }
+        ],
+        "prompt_v3": [
+            {
+                "type": "llm_call",
+                "input": "What is the capital of France?",
+                "output": "The capital is Paris.",
+                "duration_ms": 180
+            }
+        ],
+        "prompt_v4": [
+            {
+                "type": "llm_call",
+                "input": "What is the capital of France?",
+                "output": "Paris.",
+                "duration_ms": 140
+            }
+        ]
+    },
+    "simulation": [
+        [
+            {
+                "id": "prompt_v1",
+                "accuracy": 0.75,
+                "hallucination": 0.20,
+                "orbitRadius": 6,
+                "speed": 0.4
+            },
+            {
+                "id": "prompt_v2",
+                "accuracy": 0.65,
+                "hallucination": 0.30,
+                "orbitRadius": 9,
+                "speed": 0.3
+            },
+            {
+                "id": "prompt_v3",
+                "accuracy": 0.70,
+                "hallucination": 0.25,
+                "orbitRadius": 12,
+                "speed": 0.2
+            },
+            {
+                "id": "prompt_v4",
+                "accuracy": 0.80,
+                "hallucination": 0.15,
+                "orbitRadius": 15,
+                "speed": 0.1
+            }
+        ],
+        [
+            {
+                "id": "prompt_v1",
+                "accuracy": 0.82,
+                "hallucination": 0.15,
+                "orbitRadius": 6,
+                "speed": 0.4
+            },
+            {
+                "id": "prompt_v2",
+                "accuracy": 0.68,
+                "hallucination": 0.28,
+                "orbitRadius": 9,
+                "speed": 0.3
+            },
+            {
+                "id": "prompt_v3",
+                "accuracy": 0.78,
+                "hallucination": 0.18,
+                "orbitRadius": 12,
+                "speed": 0.2
+            },
+            {
+                "id": "prompt_v4",
+                "accuracy": 0.91,
+                "hallucination": 0.08,
+                "orbitRadius": 15,
+                "speed": 0.1
+            }
+        ],
+        [
+            {
+                "id": "prompt_v1",
+                "accuracy": 0.85,
+                "hallucination": 0.12,
+                "orbitRadius": 6,
+                "speed": 0.4
+            },
+            {
+                "id": "prompt_v2",
+                "accuracy": 0.70,
+                "hallucination": 0.25,
+                "orbitRadius": 9,
+                "speed": 0.3
+            },
+            {
+                "id": "prompt_v3",
+                "accuracy": 0.81,
+                "hallucination": 0.15,
+                "orbitRadius": 12,
+                "speed": 0.2
+            },
+            {
+                "id": "prompt_v4",
+                "accuracy": 0.98,
+                "hallucination": 0.02,
+                "orbitRadius": 15,
+                "speed": 0.1
+            }
+        ]
+    ]
+}

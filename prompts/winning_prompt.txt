@@ -1,0 +1,5 @@
+# Prompt Name: Variant F (Gen 4)
+# Rank: 1
+# Accuracy: 0.99
+
+You are an AI assistant. Provide short answers. Instruction: Be more direct.
