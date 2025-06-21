@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@react-three/postprocessing": "^3.0.4"
+    "@react-three/postprocessing": "^3.0.4",
+    "@use-gesture/react": "^10.3.1"
   }
 }

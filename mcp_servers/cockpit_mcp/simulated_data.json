@@ -1,156 +1,221 @@
 {
-    "prompts": {
-        "prompt_v1": {
-            "name": "Prompt Variant A",
-            "text": "As an assistant, your goal is to be concise."
+    "galaxy-alpha": {
+        "id": "galaxy-alpha",
+        "name": "Alpha Quadrant Agent",
+        "position": [
+            -50,
+            0,
+            -20
+        ],
+        "theme": {
+            "hue": 0.6
         },
-        "prompt_v2": {
-            "name": "Prompt Variant B",
-            "text": "You are a laconic assistant. Be brief."
-        },
-        "prompt_v3": {
-            "name": "Prompt Variant C",
-            "text": "You are an AI assistant. Provide short answers."
-        },
-        "prompt_v4": {
-            "name": "Prompt Variant D (Winning)",
-            "text": "You are a helpful assistant. Answer concisely."
+        "status": "stable",
+        "planets": [
+            {
+                "id": "alpha-p1",
+                "name": "Customer Inquiry Classifier",
+                "orbitRadius": 15,
+                "status": "deployed",
+                "deployedVersion": {
+                    "id": "v0987",
+                    "text": "Initial prompt for classifying customer inquiries.",
+                    "evaluation": {
+                        "score": 0.92,
+                        "factuality": 0.98,
+                        "hallucination": 0.05,
+                        "speed": 120
+                    },
+                    "timestamp": "2023-01-01T12:00:00Z"
+                },
+                "traceHistory": []
+            },
+            {
+                "id": "alpha-p2",
+                "name": "Sentiment Analyzer",
+                "orbitRadius": 20,
+                "status": "candidate",
+                "deployedVersion": {
+                    "id": "v0988",
+                    "text": "A new prompt for analyzing customer sentiment.",
+                    "evaluation": {
+                        "score": 0.75,
+                        "factuality": 0.8,
+                        "hallucination": 0.25,
+                        "speed": 180
+                    },
+                    "timestamp": "2023-01-02T14:00:00Z"
+                },
+                "traceHistory": []
+            },
+            {
+                "id": "alpha-p3",
+                "name": "Legacy Keyword Matcher",
+                "orbitRadius": 25,
+                "status": "deployed",
+                "deployedVersion": {
+                    "id": "v0989",
+                    "text": "An old prompt that relies on keyword matching.",
+                    "evaluation": {
+                        "score": 0.55,
+                        "factuality": 0.6,
+                        "hallucination": 0.5,
+                        "speed": 90
+                    },
+                    "timestamp": "2023-01-03T16:00:00Z"
+                },
+                "traceHistory": []
+            }
+        ],
+        "comets": [],
+        "config": {
+            "apiUrl": "http://localhost:8081/mock-telemetry/alpha",
+            "authToken": "alpha-secret-token",
+            "opikMetrics": [
+                "factuality",
+                "hallucination"
+            ],
+            "metricMapping": {
+                "planetSize": "score",
+                "planetPosition": "score"
+            }
         }
     },
-    "traces": {
-        "prompt_v1": [
+    "galaxy-beta": {
+        "id": "galaxy-beta",
+        "name": "Beta Quadrant Agent",
+        "position": [
+            50,
+            0,
+            20
+        ],
+        "theme": {
+            "hue": 0.1
+        },
+        "status": "optimizing",
+        "planets": [
             {
-                "type": "llm_call",
-                "input": "What is the capital of France?",
-                "output": "Paris.",
-                "duration_ms": 150
+                "id": "beta-p1",
+                "name": "Intent Classifier",
+                "orbitRadius": 12,
+                "status": "deployed",
+                "deployedVersion": {
+                    "id": "v1123",
+                    "text": "Classify the user's intent based on their initial query.",
+                    "evaluation": {
+                        "score": 0.65,
+                        "factuality": 0.7,
+                        "hallucination": 0.45,
+                        "speed": 90
+                    },
+                    "timestamp": "2023-01-10T10:00:00Z"
+                },
+                "traceHistory": []
             },
             {
-                "type": "tool_call",
-                "tool": "search",
-                "input": "Annual rainfall in Amazon",
-                "output": "{'rainfall_mm': 2300}",
-                "duration_ms": 450
+                "id": "beta-p3",
+                "name": "Escalation Predictor",
+                "orbitRadius": 24,
+                "status": "candidate",
+                "deployedVersion": {
+                    "id": "v3001",
+                    "text": "Predict if the user is frustrated and needs to be escalated to a human agent.",
+                    "evaluation": {
+                        "score": 0.91,
+                        "factuality": 0.96,
+                        "hallucination": 0.07,
+                        "speed": 150
+                    },
+                    "timestamp": "2023-01-12T16:00:00Z"
+                },
+                "traceHistory": []
             }
         ],
-        "prompt_v2": [
-            {
-                "type": "llm_call",
-                "input": "What is the capital of France?",
-                "output": "Paris is the capital of France.",
-                "duration_ms": 250,
-                "metadata": {
-                    "warning": "too verbose"
-                }
+        "comets": [],
+        "config": {
+            "apiUrl": "http://localhost:8081/mock-telemetry/beta",
+            "authToken": "beta-secret-token",
+            "opikMetrics": [
+                "factuality",
+                "speed"
+            ],
+            "metricMapping": {
+                "planetSize": "factuality",
+                "planetPosition": "score"
             }
-        ],
-        "prompt_v3": [
-            {
-                "type": "llm_call",
-                "input": "What is the capital of France?",
-                "output": "The capital is Paris.",
-                "duration_ms": 180
-            }
-        ],
-        "prompt_v4": [
-            {
-                "type": "llm_call",
-                "input": "What is the capital of France?",
-                "output": "Paris.",
-                "duration_ms": 140
-            }
-        ]
+        }
     },
-    "simulation": [
-        [
+    "galaxy-gamma": {
+        "id": "galaxy-gamma",
+        "name": "Critical Alert Agent",
+        "position": [
+            0,
+            0,
+            60
+        ],
+        "theme": {
+            "hue": 0.8
+        },
+        "status": "critical",
+        "status_message": "\u00f0\u0178\u203a\u2018 Low production health. Hallucination score rising. Active optimization in progress.",
+        "planets": [
             {
-                "id": "prompt_v1",
-                "accuracy": 0.75,
-                "hallucination": 0.20,
-                "orbitRadius": 6,
-                "speed": 0.4
-            },
-            {
-                "id": "prompt_v2",
-                "accuracy": 0.65,
-                "hallucination": 0.30,
-                "orbitRadius": 9,
-                "speed": 0.3
-            },
-            {
-                "id": "prompt_v3",
-                "accuracy": 0.70,
-                "hallucination": 0.25,
-                "orbitRadius": 12,
-                "speed": 0.2
-            },
-            {
-                "id": "prompt_v4",
-                "accuracy": 0.80,
-                "hallucination": 0.15,
-                "orbitRadius": 15,
-                "speed": 0.1
+                "id": "gamma-p1",
+                "name": "Toxicity Filter",
+                "orbitRadius": 20,
+                "status": "deployed",
+                "deployedVersion": {
+                    "id": "v4001",
+                    "text": "Filter out toxic content from user-generated text.",
+                    "evaluation": {
+                        "score": 0.45,
+                        "factuality": 0.55,
+                        "hallucination": 0.4,
+                        "speed": 80
+                    },
+                    "timestamp": "2023-01-20T10:00:00Z"
+                },
+                "traceHistory": []
             }
         ],
-        [
-            {
-                "id": "prompt_v1",
-                "accuracy": 0.82,
-                "hallucination": 0.15,
-                "orbitRadius": 6,
-                "speed": 0.4
-            },
-            {
-                "id": "prompt_v2",
-                "accuracy": 0.68,
-                "hallucination": 0.28,
-                "orbitRadius": 9,
-                "speed": 0.3
-            },
-            {
-                "id": "prompt_v3",
-                "accuracy": 0.78,
-                "hallucination": 0.18,
-                "orbitRadius": 12,
-                "speed": 0.2
-            },
-            {
-                "id": "prompt_v4",
-                "accuracy": 0.91,
-                "hallucination": 0.08,
-                "orbitRadius": 15,
-                "speed": 0.1
+        "comets": [],
+        "config": {
+            "apiUrl": "http://localhost:8081/mock-telemetry/gamma",
+            "authToken": "gamma-secret-token",
+            "opikMetrics": [
+                "hallucination",
+                "speed",
+                "toxicity"
+            ],
+            "metricMapping": {
+                "planetSize": "hallucination",
+                "planetPosition": "score"
             }
+        }
+    },
+    "demo-agent": {
+        "id": "demo-agent",
+        "name": "Demo Agent",
+        "position": [
+            90.49605891689032,
+            0,
+            4.7906168918342615
         ],
-        [
-            {
-                "id": "prompt_v1",
-                "accuracy": 0.85,
-                "hallucination": 0.12,
-                "orbitRadius": 6,
-                "speed": 0.4
-            },
-            {
-                "id": "prompt_v2",
-                "accuracy": 0.70,
-                "hallucination": 0.25,
-                "orbitRadius": 9,
-                "speed": 0.3
-            },
-            {
-                "id": "prompt_v3",
-                "accuracy": 0.81,
-                "hallucination": 0.15,
-                "orbitRadius": 12,
-                "speed": 0.2
-            },
-            {
-                "id": "prompt_v4",
-                "accuracy": 0.98,
-                "hallucination": 0.02,
-                "orbitRadius": 15,
-                "speed": 0.1
-            }
-        ]
-    ]
+        "theme": {
+            "hue": 0.5699473213613729
+        },
+        "status": "initializing",
+        "status_message": "Onboarding complete. Awaiting first telemetry.",
+        "config": {
+            "apiUrl": "http://localhost:8081/mock-telemetry/alpha",
+            "authToken": "secret-key-demo",
+            "opikMetrics": [
+                "factuality",
+                "hallucination",
+                "speed"
+            ]
+        },
+        "planets": [],
+        "comets": []
+    }
 }
