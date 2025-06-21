@@ -1,0 +1,119 @@
+.metric-config {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #555;
+}
+
+.metric-config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.metric-config-header h4 {
+    margin: 0;
+    color: #aaddff;
+    font-size: 0.9em;
+}
+
+.prompt-status {
+    text-align: left;
+}
+
+.edit-btn,
+.save-btn,
+.cancel-btn {
+    padding: 4px 8px;
+    border-radius: 3px;
+    border: 1px solid;
+    background-color: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.edit-btn {
+    border-color: #99ccff;
+    color: #99ccff;
+}
+
+.edit-btn:hover {
+    background-color: #99ccff;
+    color: #0a1428;
+}
+
+.save-btn {
+    border-color: #66cc66;
+    color: #66cc66;
+    margin-right: 5px;
+}
+
+.save-btn:hover {
+    background-color: #66cc66;
+    color: #0a1428;
+}
+
+.cancel-btn {
+    border-color: #ff6666;
+    color: #ff6666;
+}
+
+.cancel-btn:hover {
+    background-color: #ff6666;
+    color: #0a1428;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.metric-mappings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.metric-mapping-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+}
+
+.metric-mapping-item label {
+    font-size: 0.85em;
+    color: #ccc;
+    font-weight: normal;
+}
+
+.metric-select {
+    background-color: #1a1a2a;
+    color: white;
+    border: 1px solid #334;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 0.8em;
+    min-width: 100px;
+}
+
+.metric-value {
+    font-size: 0.85em;
+    color: #99ccff;
+    font-weight: bold;
+}
+
+.metric-info {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    border-radius: 4px;
+    border-left: 3px solid #99ccff;
+}
+
+.metric-info small {
+    color: #aaa;
+    line-height: 1.4;
+}
