@@ -107,6 +107,28 @@ async def handle_onboard(request):
         traceback.print_exc()
         return web.Response(status=500, text="Internal Server Error during onboarding.")
 
+def _update_galaxy_status_based_on_planets(galaxy):
+    """
+    Recalculates the galaxy's status based on the average score of its planets.
+    This is called when an optimization completes or is cancelled.
+    """
+    if galaxy.get("comets"):
+        galaxy["status"] = "optimizing"
+        return
+
+    planets = galaxy.get("planets", [])
+    if not planets:
+        galaxy["status"] = "stable"
+        return
+
+    total_score = sum(p.get("deployedVersion", {}).get("evaluation", {}).get("score", 0) for p in planets)
+    average_score = total_score / len(planets)
+
+    if average_score < 0.6:
+        galaxy["status"] = "critical"
+    else:
+        galaxy["status"] = "stable"
+
 # --- Frontend-driven Optimizer Endpoints ---
 
 async def handle_optimizer_start(request):
@@ -190,15 +212,37 @@ async def handle_optimizer_deploy_variant(request):
 
         planet["deployedVersion"] = variant_to_deploy
         
-        # Optionally, end the optimization run after a successful deployment
-        galaxy["comets"] = []
-        galaxy["status"] = "active"
+        # End optimization for the planet and check if the galaxy is still optimizing
+        galaxy["comets"] = [c for c in galaxy.get("comets", []) if c.get("targetPlanetId") != planet_id]
+        _update_galaxy_status_based_on_planets(galaxy)
 
         await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
         return web.json_response({"status": "success", "deployed_variant_id": variant_id})
 
     except Exception as e:
         print(f"Deploy variant error: {e}")
+        return web.Response(status=500, text="Internal Server Error")
+
+async def handle_optimizer_stop(request):
+    """Stops an optimization run for a given planet."""
+    try:
+        data = await request.json()
+        galaxy_id = data.get("galaxy_id")
+        planet_id = data.get("planet_id")
+
+        galaxy = galaxies.get(galaxy_id)
+        if not galaxy:
+            return web.Response(status=404, text="Galaxy not found")
+
+        # Remove comets targeting this planet
+        galaxy["comets"] = [c for c in galaxy.get("comets", []) if c.get("targetPlanetId") != planet_id]
+        _update_galaxy_status_based_on_planets(galaxy)
+        
+        await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
+        return web.json_response({"status": "success", "message": f"Optimization stopped for planet {planet_id}."})
+
+    except Exception as e:
+        print(f"Optimizer stop error: {e}")
         return web.Response(status=500, text="Internal Server Error")
 
 async def handle_delete_agent(request):
@@ -445,6 +489,7 @@ async def main():
     app.router.add_post("/api/optimizer/start", handle_optimizer_start)
     app.router.add_post("/api/optimizer/generate_variant", handle_optimizer_generate_variant)
     app.router.add_post("/api/optimizer/deploy_variant", handle_optimizer_deploy_variant)
+    app.router.add_post("/api/optimizer/stop", handle_optimizer_stop)
     app.router.add_delete("/api/agent/{agent_id}", handle_delete_agent)
     app.router.add_put("/api/agent/{agent_id}/position", handle_update_position)
     app.router.add_put("/api/agent/{agent_id}/metric_mapping", handle_update_metric_mapping)
