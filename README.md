@@ -66,7 +66,7 @@ The Planet View is the most granular level, offering powerful tools to inspect a
 *   Custom Metrics Integration: Map any internal KPIs (e.g. cost, latency, satisfaction score) to visual elements.
 *   Version Control Overlay: Git-style history for prompt versions across galaxies and planets.
 *   Multi-user Collaboration: Shared cockpit sessions for real-time team exploration and optimization.
-*   Agent Simulation Mode: Run hypothetical prompt tests in an isolated simulation before deploying live.
+  
 
 ## 🚀 Getting Started
 
