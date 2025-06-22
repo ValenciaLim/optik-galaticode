@@ -60,6 +60,14 @@ The Planet View is the most granular level, offering powerful tools to inspect a
 *   **Frontend:** React, React Three Fiber (for 3D), Drei (helpers for R3F), Zustand (state management).
 *   **Backend:** Python, aiohttp (for the web server and WebSocket communication).
 
+## 🔮 Potential features to scale to
+*   Agent Collaboration Mapping: Visualize inter-agent communication or handoffs as connecting star paths.
+*   Time-Lapse Mode: Watch prompt evolution and performance changes over time in animated form.
+*   Custom Metrics Integration: Map any internal KPIs (e.g. cost, latency, satisfaction score) to visual elements.
+*   Version Control Overlay: Git-style history for prompt versions across galaxies and planets.
+*   Multi-user Collaboration: Shared cockpit sessions for real-time team exploration and optimization.
+*   Agent Simulation Mode: Run hypothetical prompt tests in an isolated simulation before deploying live.
+
 ## 🚀 Getting Started
 
 Follow these steps to get the GalactiCode cockpit running on your local machine.
