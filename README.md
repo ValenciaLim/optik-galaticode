@@ -22,10 +22,10 @@ The Universe View is your landing page and the highest-level dashboard. It provi
     *   Pan, zoom, rotate, re-position to explore your universe of agents.
     *   The central star of each system indicates the agent's overall status (e.g., green for stable, yellow for optimizing, red for critical).
     *   Use the **Control Panel** to search for specific agents or filter them by health status.
-    *   Clicking a galaxy's central star displays its metadata in the **Stats Box**.
     *   Double-clicking a galaxy's central star takes you into the **Galaxy View**.
+    *   **Try For Fun!** Change the planet to Pokemon-planets or Cat-planets using the **Control Panel**
 
-![Universe View](https://i.imgur.com/your-universe-view-image.png)
+👉 [**Universe View Demo**]([https://your-video-link-here.com](https://www.loom.com/share/12e8af9f254e456bbbe49bca7ceed528?sid=b4735a76-8925-4931-b6d5-e766c28595ad))
 
 ### 🪐 Galaxy View
 
