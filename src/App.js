@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
-import { OrbitControls, Line, Text, Trail, Html, Stars, Sparkles } from '@react-three/drei';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { OrbitControls, Line, Text, Html, Stars, Sparkles } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { useDrag } from '@use-gesture/react';
@@ -8,33 +8,86 @@ import './App.css';
 import OnboardingForm from './OnboardingForm';
 import MetricConfig from './MetricConfig';
 
+// --- Helper Functions ---
+
+function calculatePlanetPosition(planet, galaxy, time) {
+    // Get metric mappings from galaxy config
+    const metricMapping = galaxy.config?.metricMapping || {
+        planetSize: "score",
+        planetPosition: "score"
+    };
+    
+    // Calculate dynamic properties based on metric mappings
+    const getMetricValue = (metricName) => {
+        if (!metricMapping[metricName]) {
+            return null;
+        }
+        const evaluation = planet.deployedVersion?.evaluation || {};
+        return evaluation[metricName] || null;
+    };
+    
+    const positionMetric = getMetricValue('planetPosition');
+    const speedMetric = getMetricValue('planetSpeed');
+    
+    // Normalize metrics to 0-1 range
+    const normalizedPositionMetric = positionMetric !== null ? Math.max(0, Math.min(1, positionMetric || 0)) : 0.5;
+    const normalizedSpeedMetric = speedMetric !== null ? Math.max(0, Math.min(1, speedMetric || 0)) : 0;
+    
+    // Use individual planet orbit radius if no position metric is mapped
+    const planetOrbitRadius = positionMetric !== null ? (10 + 30 * (1 - normalizedPositionMetric)) : (planet.orbitRadius || 15);
+    
+    // Use speed metric for orbital movement speed - only move if speed metric is assigned
+    const orbitalSpeed = metricMapping.planetSpeed ? (normalizedSpeedMetric * 0.5 + 0.1) : 0;
+    
+    // Calculate current angle
+    const angle = (planet.orbitRadius || 0) + (metricMapping.planetSpeed ? time * orbitalSpeed : 0);
+    
+    // Calculate position relative to galaxy
+    const x = galaxy.position[0] + Math.cos(angle) * planetOrbitRadius;
+    const y = galaxy.position[1];
+    const z = galaxy.position[2] + Math.sin(angle) * planetOrbitRadius;
+    
+    return new THREE.Vector3(x, y, z);
+}
+
+const generatePromptVariant = (basePrompt, optimizer = 'Few-shot Bayesian') => {
+    const base = basePrompt || "Provide a concise summary of the input text.";
+
+    switch (optimizer) {
+        case 'MIPRO':
+            const miproVariations = [
+                `Instruction: ${base}\nInput:`,
+                `System: You are a helpful assistant. \nUser: ${base}\nAssistant:`,
+                `Analyze the following request and provide a detailed response. Request: ${base}`,
+                `Given the context, ${base}. Be thorough.`,
+                `Task: ${base}. Output in JSON format.`
+            ];
+            return miproVariations[Math.floor(Math.random() * miproVariations.length)];
+
+        case 'LLM-powered MetaPrompt':
+            const metaVariations = [
+                `Rewrite this prompt to be more effective for a large language model, focusing on clarity and reducing ambiguity: "${base}"`,
+                `Imagine you are a prompt engineering expert. Your task is to refine the following prompt for better performance. Consider adding context, constraints, or examples: "${base}"`,
+                `Generate three alternative prompts that achieve the same goal as this one, but from completely different perspectives (e.g., role-playing, step-by-step instructions, or question-based): "${base}"`,
+                `Take this prompt and make it more robust against adversarial inputs: "${base}"`,
+                `What if the goal of "${base}" was to be understood by a five-year-old? How would you rewrite it?`
+            ];
+            return metaVariations[Math.floor(Math.random() * metaVariations.length)];
+
+        case 'Few-shot Bayesian':
+        default:
+            const bayesianVariations = [
+                `Slightly improved: ${base}`,
+                base.replace(/\b(a|the|an|to)\b/gi, ''), // remove common articles/prepositions
+                `${base} Please be brief and to the point.`,
+                `Enhanced for clarity and conciseness: ${base}`,
+                `Could you please ${base.charAt(0).toLowerCase() + base.slice(1)}`
+            ];
+            return bayesianVariations[Math.floor(Math.random() * bayesianVariations.length)];
+    }
+};
 
 // --- 3D Components ---
-
-function Comet({ comet, onSelect }) {
-    const meshRef = useRef();
-    const [isHovered, setIsHovered] = useState(false);
-
-    useFrame(() => {
-        if (meshRef.current) {
-            const progress = comet.progress || 0;
-            const start = new THREE.Vector3(...comet.position);
-            const trajectory = new THREE.Vector3(...comet.trajectory);
-            meshRef.current.position.copy(start).addScaledVector(trajectory, progress * 60);
-        }
-    });
-
-    return (
-        <group>
-            <Trail width={2} length={8} color={'#F0F0FF'} attenuation={(t) => t * t}>
-                <mesh ref={meshRef} onPointerOver={(e) => { e.stopPropagation(); onSelect({...comet, isComet: true}); setIsHovered(true); }} onPointerOut={() => { onSelect(null); setIsHovered(false); }}>
-                    <sphereGeometry args={[isHovered ? 1.2 : 0.8, 16, 16]} />
-                    <meshStandardMaterial color="white" emissive="lightblue" emissiveIntensity={2} />
-                </mesh>
-            </Trail>
-        </group>
-    );
-}
 
 function OrbitLine({ radius }) {
     const points = useMemo(() => {
@@ -49,34 +102,66 @@ function OrbitLine({ radius }) {
     return <Line points={points} color="gray" lineWidth={0.7} dashed dashSize={0.4} gapSize={0.2} />;
 }
 
-function TraceNode({ variant, radius, onSelect, theme = {} }) {
+function TraceNode({ variant, radius, onSelect, theme = {}, rank, isNewEntry = false, isNewTop = false }) {
     const nodeRef = useRef();
+    const materialRef = useRef();
+    const [highlightStartTime, setHighlightStartTime] = useState(null);
+    const [isHovered, setIsHovered] = useState(false);
+
+    // Handle new entry highlight
+    useEffect(() => {
+        if (isNewEntry || isNewTop) {
+            setHighlightStartTime(Date.now());
+        }
+    }, [isNewEntry, isNewTop]);
 
     useFrame(({ clock }) => {
         const angle = clock.getElapsedTime() * 0.5 + radius;
         if (nodeRef.current) {
             nodeRef.current.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
         }
+        
+        // Handle highlight animation
+        if (materialRef.current && highlightStartTime) {
+            const elapsed = (Date.now() - highlightStartTime) / 1000;
+            if (elapsed < 1.0) {
+                const intensity = 1.0 + Math.sin(elapsed * Math.PI * 4) * 0.5;
+                materialRef.current.emissiveIntensity = intensity;
+                // White for new entries, gold for new top entries
+                materialRef.current.emissive.setHex(isNewTop ? 0xffd700 : 0xffffff);
+            } else {
+                materialRef.current.emissiveIntensity = 0.3;
+                setHighlightStartTime(null);
+            }
+        }
     });
     
     const score = variant?.evaluation?.score ?? 0;
     const color = useMemo(() => new THREE.Color().setHSL(theme.hue || 0.6, 0.7, 0.4 + (score * 0.4)), [score, theme]);
 
+    const handleClick = (e) => {
+        e.stopPropagation();
+        onSelect(variant);
+    };
+
     return (
+        <group>
         <mesh
             ref={nodeRef}
             onPointerOver={(e) => {
                 e.stopPropagation();
-                onSelect(variant);
+                    setIsHovered(true);
                 document.body.style.cursor = 'pointer';
             }}
             onPointerOut={() => {
-                onSelect(null);
+                    setIsHovered(false);
                 document.body.style.cursor = 'auto';
             }}
+                onClick={handleClick}
         >
-            <sphereGeometry args={[0.3, 16, 16]} />
+                <sphereGeometry args={[isHovered ? 0.4 : 0.3, 16, 16]} />
             <meshStandardMaterial
+                    ref={materialRef}
                 color={color}
                 metalness={0.3}
                 roughness={0.4}
@@ -84,11 +169,139 @@ function TraceNode({ variant, radius, onSelect, theme = {} }) {
                 emissiveIntensity={0.3}
             />
         </mesh>
+            {/* Rank label */}
+            <Text
+                position={[0, 0.6, 0]}
+                fontSize={0.2}
+                color="white"
+                anchorX="center"
+                anchorY="middle"
+            >
+                #{rank}
+            </Text>
+        </group>
     );
 }
 
-function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyConfig }) {
-    const { deployedVersion, traceHistory, status, orbitRadius } = planet;
+function PlanetTraceNodes({ planet, theme, onSelect, galaxyConfig, view, onAddTrace }) {
+    const [topTraces, setTopTraces] = useState([]);
+    const [newEntries, setNewEntries] = useState(new Set());
+    const [newTopEntry, setNewTopEntry] = useState(null);
+    const prevTopTracesRef = useRef([]);
+    const groupRef = useRef();
+
+    // Get metric mappings from galaxy config
+    const metricMapping = galaxyConfig?.metricMapping || {
+        planetSize: "score",
+        planetPosition: "score"
+    };
+    
+    // Calculate dynamic properties based on metric mappings
+    const getMetricValue = (metricName) => {
+        if (!metricMapping[metricName]) {
+            return null;
+        }
+        const evaluation = planet.deployedVersion?.evaluation || {};
+        return evaluation[metricName] || null;
+    };
+    
+    const positionMetric = getMetricValue('planetPosition');
+    const speedMetric = getMetricValue('planetSpeed');
+    
+    // Normalize metrics to 0-1 range
+    const normalizedPositionMetric = positionMetric !== null ? Math.max(0, Math.min(1, positionMetric || 0)) : 0.5;
+    const normalizedSpeedMetric = speedMetric !== null ? Math.max(0, Math.min(1, speedMetric || 0)) : 0;
+    
+    // Use individual planet orbit radius if no position metric is mapped
+    const planetOrbitRadius = positionMetric !== null ? (10 + 30 * (1 - normalizedPositionMetric)) : (planet.orbitRadius || 15);
+    
+    // Use speed metric for orbital movement speed - only move if speed metric is assigned
+    const orbitalSpeed = metricMapping.planetSpeed ? (normalizedSpeedMetric * 0.5 + 0.1) : 0;
+
+    // Get top traces from traceHistory
+    useEffect(() => {
+        if (planet.traceHistory) {
+            const sortedTraces = [...planet.traceHistory]
+                .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0))
+                .slice(0, 10);
+
+            const newEntriesSet = new Set();
+            const previousIds = new Set(prevTopTracesRef.current.map(t => t.id));
+            const previousTopId = prevTopTracesRef.current.length > 0 ? prevTopTracesRef.current[0]?.id : null;
+            const currentTopId = sortedTraces.length > 0 ? sortedTraces[0]?.id : null;
+            
+            sortedTraces.forEach((trace, index) => {
+                if (!previousIds.has(trace.id)) {
+                    newEntriesSet.add(trace.id);
+                    if (index === 0 && currentTopId !== previousTopId) {
+                        setNewTopEntry(trace.id);
+                        setTimeout(() => setNewTopEntry(null), 1000);
+                    }
+                }
+            });
+            
+            setNewEntries(newEntriesSet);
+            setTopTraces(sortedTraces);
+            prevTopTracesRef.current = sortedTraces;
+            
+            // Clear new entry highlights after animation
+            setTimeout(() => setNewEntries(new Set()), 1000);
+        }
+    }, [planet.traceHistory]);
+
+    // Update trace nodes position to follow the planet
+    useFrame(({ clock }) => {
+        if (groupRef.current) {
+            const time = clock.getElapsedTime();
+            const angle = (planet.orbitRadius || 0) + (metricMapping.planetSpeed ? time * orbitalSpeed : 0);
+            const x = Math.cos(angle) * planetOrbitRadius;
+            const z = Math.sin(angle) * planetOrbitRadius;
+            groupRef.current.position.set(x, 0, z);
+        }
+    });
+
+    const handleTraceSelect = (trace) => {
+        onSelect(trace);
+    };
+
+    // Only show trace nodes when we're focused on this specific planet
+    const isPlanetFocused = view.type === 'galaxy' && view.focusedPlanet === planet.id;
+    
+    // Don't render anything if not focused on this planet
+    if (!isPlanetFocused) {
+        return null;
+    }
+
+    return (
+        <group ref={groupRef}>
+            {topTraces.map((trace, index) => {
+                const baseOrbitRadius = 3;
+                const traceOrbitRadius = baseOrbitRadius + (index * 0.8);
+                const isNewEntry = newEntries.has(trace.id);
+                const isNewTop = newTopEntry === trace.id;
+                const rank = index + 1;
+                
+                return (
+                    <group key={trace.id}>
+                        <OrbitLine radius={traceOrbitRadius} />
+                        <TraceNode
+                            variant={{...trace, rank}}
+                            radius={traceOrbitRadius}
+                            onSelect={handleTraceSelect}
+                            theme={theme}
+                            rank={rank}
+                            isNewEntry={isNewEntry}
+                            isNewTop={isNewTop}
+                        />
+                    </group>
+                );
+            })}
+        </group>
+    );
+}
+
+function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyConfig, view, onAddTrace }) {
+    const { deployedVersion, status, orbitRadius } = planet;
     const isDeployed = status === 'deployed';
 
     const planetRef = useRef();
@@ -115,16 +328,6 @@ function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyCon
     const sizeMetric = getMetricValue('planetSize');
     const positionMetric = getMetricValue('planetPosition');
     const speedMetric = getMetricValue('planetSpeed');
-    
-    // Debug logging for each planet
-    console.log(`Planet ${planet.id}:`, {
-        sizeMetric,
-        positionMetric,
-        speedMetric,
-        score: deployedVersion?.evaluation?.score,
-        metricMapping,
-        orbitRadius: planet.orbitRadius
-    });
     
     // Normalize metrics to 0-1 range (assuming most metrics are already in this range)
     // Use default values when metric is null (empty)
@@ -172,6 +375,10 @@ function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyCon
         onDoubleClick(planet.id);
     };
 
+    const handleTraceSelect = (trace) => {
+        onSelect(trace);
+    };
+
     return (
         <group>
             <mesh
@@ -204,19 +411,26 @@ function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyCon
                     />
                 )}
             </mesh>
-            {/* {traceHistory?.map((variant, index) => (
-                <TraceNode key={variant.id} variant={variant} radius={planetSize + 1.5 + index * 0.6} onSelect={onSelect} theme={theme} />
-            ))} */}
+            
+            {/* Trace Nodes orbiting around the planet */}
+            <PlanetTraceNodes
+                planet={planet}
+                theme={theme}
+                onSelect={handleTraceSelect}
+                galaxyConfig={galaxyConfig}
+                view={view}
+                onAddTrace={(newTrace) => onAddTrace(newTrace)}
+            />
         </group>
     );
 }
 
-function PlanetWithTextureLoader({ planet, textureUrl, onSelect, onDoubleClick, theme, galaxyConfig }) {
+function PlanetWithTextureLoader({ planet, textureUrl, onSelect, onDoubleClick, theme, galaxyConfig, view, onAddTrace }) {
     const texture = useLoader(THREE.TextureLoader, textureUrl);
-    return <PlanetMesh planet={planet} texture={texture} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} />;
+    return <PlanetMesh planet={planet} texture={texture} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} view={view} onAddTrace={onAddTrace} />;
 }
 
-function Planet({ planet, onSelect, onDoubleClick, textureTheme, theme, galaxyConfig }) {
+function Planet({ planet, onSelect, onDoubleClick, textureTheme, theme, galaxyConfig, view, onAddTrace }) {
     let textureUrl = null;
     if (textureTheme && textureTheme !== 'default') {
         const theme_generators = {
@@ -227,10 +441,10 @@ function Planet({ planet, onSelect, onDoubleClick, textureTheme, theme, galaxyCo
     }
     
     if (!textureUrl) {
-        return <PlanetMesh planet={planet} texture={null} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} />;
+        return <PlanetMesh planet={planet} texture={null} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} view={view} onAddTrace={onAddTrace} />;
     }
 
-    return <PlanetWithTextureLoader planet={planet} textureUrl={textureUrl} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} />;
+    return <PlanetWithTextureLoader planet={planet} textureUrl={textureUrl} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} view={view} onAddTrace={onAddTrace} />;
 }
 
 function SpaceStation({ color, onDoubleClick, isCritical, status, statusMessage, onHover }) {
@@ -287,11 +501,11 @@ function SpaceStation({ color, onDoubleClick, isCritical, status, statusMessage,
     );
 }
 
-function Galaxy({ galaxy, onSelect, onPlanetSelect, onGalaxyDoubleClick, onPlanetDoubleClick, onStationHover, textureTheme, onGalaxyMove, setOrbitControlsEnabled }) {
+function Galaxy({ galaxy, onSelect, onPlanetSelect, onGalaxyDoubleClick, onPlanetDoubleClick, onStationHover, textureTheme, onGalaxyMove, setOrbitControlsEnabled, view, onAddTrace }) {
     const groupRef = useRef();
     const [position, setPosition] = useState(galaxy.position);
     const pointLightRef = useRef();
-    const isOptimizing = galaxy.status === 'optimizing' || (galaxy.comets && galaxy.comets.length > 0);
+    const isOptimizing = galaxy.status === 'optimizing';
     const isCritical = galaxy.status === 'critical';
     const hasPlanets = galaxy.planets && galaxy.planets.length > 0;
 
@@ -373,7 +587,17 @@ function Galaxy({ galaxy, onSelect, onPlanetSelect, onGalaxyDoubleClick, onPlane
                 return <OrbitLine key={`orbit-${p.id}`} radius={orbitRadius} />;
             })}
             {galaxy.planets?.map(p => (
-                <Planet key={p.id} planet={p} onSelect={onSelect} onDoubleClick={onPlanetDoubleClick} textureTheme={textureTheme} theme={galaxy.theme} galaxyConfig={galaxy.config} />
+                <Planet 
+                    key={p.id} 
+                    planet={p} 
+                    onSelect={onSelect} 
+                    onDoubleClick={(planetId) => onPlanetDoubleClick(planetId, galaxy.id)} 
+                    textureTheme={textureTheme} 
+                    theme={galaxy.theme} 
+                    galaxyConfig={galaxy.config} 
+                    view={view}
+                    onAddTrace={(newTrace) => onAddTrace(p.id, newTrace)}
+                />
             ))}
             <Text
                 position={[0, 8, 0]}
@@ -388,10 +612,163 @@ function Galaxy({ galaxy, onSelect, onPlanetSelect, onGalaxyDoubleClick, onPlane
     );
 }
 
+function PlanetSidebar({ 
+    planet, 
+    selectedTrace, 
+    onClose, 
+    isOptimizing, 
+    onStartOptimization, 
+    onStopOptimization, 
+    optimizer, 
+    onOptimizerChange,
+    scoreThreshold,
+    onScoreThresholdChange
+}) {
+    const deployedVersion = planet.deployedVersion;
+    const evalData = deployedVersion?.evaluation;
+
+    // Get the rank of the selected trace
+    const getTraceRank = (traceId) => {
+        if (!planet.traceHistory) return null;
+        const sortedTraces = [...planet.traceHistory]
+            .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0));
+        const rank = sortedTraces.findIndex(t => t.id === traceId) + 1;
+        return rank > 0 ? rank : null;
+    };
+
+    const selectedTraceRank = selectedTrace ? getTraceRank(selectedTrace.id) : null;
+
+    return (
+        <div className="planet-sidebar">
+            <div className="planet-sidebar-header">
+                <button onClick={onClose} className="close-btn-stats">×</button>
+            </div>
+            
+            <div className="planet-sidebar-content">
+                <h2>{planet.name}</h2>
+                
+                <div className="optimization-controls">
+                    <strong>Auto-Optimization</strong>
+                    <div className="optimizer-selection" style={{ marginTop: '10px', marginBottom: '10px' }}>
+                        <label htmlFor="optimizer" style={{ marginRight: '10px' }}>Optimizer:</label>
+                        <select
+                            id="optimizer"
+                            value={optimizer}
+                            onChange={(e) => onOptimizerChange(e.target.value)}
+                            disabled={isOptimizing}
+                            style={{ width: '100%', padding: '5px', boxSizing: 'border-box' }}
+                        >
+                            <option value="Few-shot Bayesian">Few-shot Bayesian</option>
+                            <option value="MIPRO">MIPRO</option>
+                            <option value="LLM-powered MetaPrompt">LLM-powered MetaPrompt</option>
+                        </select>
+                    </div>
+                    <div className="threshold-input" style={{ marginBottom: '10px' }}>
+                        <label htmlFor="threshold" style={{ marginRight: '10px' }}>Score Threshold:</label>
+                        <input
+                            type="number"
+                            id="threshold"
+                            value={scoreThreshold}
+                            onChange={(e) => onScoreThresholdChange(parseFloat(e.target.value))}
+                            disabled={isOptimizing}
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            style={{ width: '100%', padding: '5px', boxSizing: 'border-box' }}
+                        />
+                    </div>
+                    <button
+                        onClick={isOptimizing ? onStopOptimization : onStartOptimization}
+                        className={`optimization-btn ${isOptimizing ? 'stop' : ''}`}
+                    >
+                        {isOptimizing ? 'Stop' : 'Start'} A/B Testing
+                    </button>
+                    {isOptimizing && (
+                        <div className="optimization-status">
+                            Opik is running variants...
+                        </div>
+                    )}
+                </div>
+                
+                {/* Deployed Version Section */}
+                <div>
+                    <h3>Deployed Version</h3>
+                    <div className="metrics-grid">
+                        <div className="metric-item">
+                            <span className="metric-label">Score</span>
+                            <span className="metric-value">{evalData?.score?.toFixed(3) || 'N/A'}</span>
+                        </div>
+                        <div className="metric-item">
+                            <span className="metric-label">Hallucination</span>
+                            <span className="metric-value">{evalData?.hallucination || 'N/A'}</span>
+                        </div>
+                        <div className="metric-item">
+                            <span className="metric-label">Latency</span>
+                            <span className="metric-value">{evalData?.speed ? `${evalData.speed}ms` : 'N/A'}</span>
+                        </div>
+                        <div className="metric-item">
+                            <span className="metric-label">Factuality</span>
+                            <span className="metric-value">{evalData?.factuality || 'N/A'}</span>
+                        </div>
+                    </div>
+                    
+                    <div className="prompt-text-section">
+                        <h4>Prompt Text</h4>
+                        <div className="prompt-text">
+                            {deployedVersion?.text || 'No prompt text available'}
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Selected Trace Section */}
+                {selectedTrace && (
+                    <div className="selected-trace-section">
+                        <h3>Selected Variant #{selectedTraceRank}</h3>
+                        <div className="metrics-grid">
+                            <div className="metric-item">
+                                <span className="metric-label">Score</span>
+                                <span className="metric-value">{selectedTrace.evaluation?.score?.toFixed(3) || 'N/A'}</span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Hallucination</span>
+                                <span className="metric-value">{selectedTrace.evaluation?.hallucination || 'N/A'}</span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Latency</span>
+                                <span className="metric-value">{selectedTrace.evaluation?.speed ? `${selectedTrace.evaluation.speed}ms` : 'N/A'}</span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Factuality</span>
+                                <span className="metric-value">{selectedTrace.evaluation?.factuality || 'N/A'}</span>
+                            </div>
+                        </div>
+                        
+                        <div className="prompt-text-section">
+                            <h4>Variant Text</h4>
+                            <div className="prompt-text">
+                                {selectedTrace.text || 'No text available'}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 
 // --- Camera & Scene Logic ---
 
-function MainScene({ galaxies, onGalaxyDoubleClick, onPlanetDoubleClick, onSelect, orbitControlsRef, onStationHover, textureTheme, onGalaxyMove, setOrbitControlsEnabled }) {
+function MainScene({ galaxies, onGalaxyDoubleClick, onPlanetDoubleClick, onSelect, orbitControlsRef, onStationHover, textureTheme, onGalaxyMove, setOrbitControlsEnabled, view, onAddTrace }) {
+    console.log('MainScene view:', view);
+    console.log('MainScene galaxies:', galaxies);
+    
+    // For galaxy view, filter to show only the selected galaxy
+    const galaxiesToRender = view.type === 'galaxy' && view.id
+        ? Object.values(galaxies).filter(g => g.id === view.id)
+        : Object.values(galaxies);
+
+    // Always render the galaxy scene
     return (
         <Suspense fallback={<Html center>Loading...</Html>}>
             <ambientLight intensity={2} />
@@ -400,10 +777,10 @@ function MainScene({ galaxies, onGalaxyDoubleClick, onPlanetDoubleClick, onSelec
             
             <Stars radius={200} depth={50} count={10000} factor={4} saturation={0} fade speed={1} />
             <Sparkles count={200} scale={150} size={2} speed={0.5} color="lightblue" />
-            {galaxies.length === 0 ? (
+            {galaxiesToRender.length === 0 ? (
                 <Text>Loading galaxies...</Text>
                 ) : (
-                    galaxies.map(galaxy => (
+                    galaxiesToRender.map(galaxy => (
                     <Galaxy
                         key={galaxy.id}
                         galaxy={galaxy}
@@ -414,6 +791,8 @@ function MainScene({ galaxies, onGalaxyDoubleClick, onPlanetDoubleClick, onSelec
                         textureTheme={textureTheme}
                         onGalaxyMove={onGalaxyMove}
                         setOrbitControlsEnabled={setOrbitControlsEnabled}
+                        view={view}
+                        onAddTrace={onAddTrace}
                     />
                 ))
             )}
@@ -426,43 +805,85 @@ function MainScene({ galaxies, onGalaxyDoubleClick, onPlanetDoubleClick, onSelec
 }
 
 function CameraController({ view, orbitControlsRef, galaxies, enabled }) {
-    const { camera } = useThree();
     const lastFocusedView = useRef(null);
+    const clockRef = useRef({ getElapsedTime: () => Date.now() / 1000 });
   
     useEffect(() => {
       if (!orbitControlsRef.current) return;
       const controls = orbitControlsRef.current;
       const cam = controls.object;
   
-      // Only zoom in/out automatically if view type is galaxy or universe (breadcrumb)
+      // Only zoom in/out automatically if view type is galaxy, universe, or planet
       if (
         (view.type === 'galaxy' && view.id) ||
-        view.type === 'universe'
+        view.type === 'universe' ||
+        (view.type === 'planet' && view.id && view.galaxyId)
       ) {
         // Prevent reapplying if same view:
         if (JSON.stringify(view) === JSON.stringify(lastFocusedView.current)) return;
   
         let targetPosition, targetLookAt;
+        const time = clockRef.current.getElapsedTime();
   
         if (view.type === 'galaxy' && view.id) {
           const targetGalaxy = galaxies[view.id];
           if (targetGalaxy) {
+            // Check if we're focusing on a specific planet
+            if (view.focusedPlanet) {
+              const planet = targetGalaxy.planets?.find(p => p.id === view.focusedPlanet);
+              if (planet) {
+                // Calculate planet's actual position using the helper function
+                const planetPos = calculatePlanetPosition(planet, targetGalaxy, time);
+
+                // Position camera near the planet but still showing the galaxy context
+                targetPosition = planetPos.clone().add(new THREE.Vector3(0, 8, 15));
+                targetLookAt = planetPos;
+              } else {
+                // Fallback to galaxy center if planet not found
             const galaxyCenter = new THREE.Vector3(...targetGalaxy.position);
             const radius = targetGalaxy.radius || 50;
-  
             const fov = THREE.MathUtils.degToRad(cam.fov);
             const distance = radius / Math.sin(fov / 2);
             const tiltHeight = 20;
-  
             targetPosition = new THREE.Vector3(
               galaxyCenter.x,
               galaxyCenter.y + tiltHeight,
               galaxyCenter.z + distance
             );
             targetLookAt = galaxyCenter;
+              }
+            } else {
+              // Normal galaxy focus
+              const galaxyCenter = new THREE.Vector3(...targetGalaxy.position);
+              const radius = targetGalaxy.radius || 50;
+              const fov = THREE.MathUtils.degToRad(cam.fov);
+              const distance = radius / Math.sin(fov / 2);
+              const tiltHeight = 20;
+              targetPosition = new THREE.Vector3(
+                galaxyCenter.x,
+                galaxyCenter.y + tiltHeight,
+                galaxyCenter.z + distance
+              );
+              targetLookAt = galaxyCenter;
+            }
           } else {
             console.error(`Galaxy not found for id: ${view.id}, defaulting.`);
             targetPosition = new THREE.Vector3(0, 80, 150);
+            targetLookAt = new THREE.Vector3(0, 0, 0);
+          }
+        } else if (view.type === 'planet' && view.id && view.galaxyId) {
+          const galaxy = galaxies[view.galaxyId];
+          const planet = galaxy?.planets?.find(p => p.id === view.id);
+          if (planet && galaxy) {
+            // Calculate planet's actual position using the helper function
+            const planetPos = calculatePlanetPosition(planet, galaxy, time);
+
+            // Position camera near the planet but still showing the galaxy context
+            targetPosition = planetPos.clone().add(new THREE.Vector3(0, 8, 15));
+            targetLookAt = planetPos;
+          } else {
+            console.error(`Planet not found for id: ${view.id} in galaxy: ${view.galaxyId}`);
+            targetPosition = new THREE.Vector3(0, 15, 25);
             targetLookAt = new THREE.Vector3(0, 0, 0);
           }
         } else if (view.type === 'universe') {
@@ -478,10 +899,15 @@ function CameraController({ view, orbitControlsRef, galaxies, enabled }) {
   
         lastFocusedView.current = JSON.parse(JSON.stringify(view)); // save current view
       } else {
-        // For other view types or no special zoom, reset lastFocusedView so next galaxy/universe can trigger zoom
+        // For other view types or no special zoom, reset lastFocusedView so next galaxy/universe/planet can trigger zoom
         lastFocusedView.current = null;
       }
     }, [view, galaxies, orbitControlsRef]);
+  
+    // Update clock reference with actual clock from useFrame
+    useFrame(({ clock }) => {
+      clockRef.current = clock;
+    });
   
     return (
       <OrbitControls
@@ -507,6 +933,8 @@ function Breadcrumb({ view, galaxies, onNavigate }) {
 
     const planet = view.type === 'planet' && galaxy
         ? galaxy.planets.find(p => p.id === view.id)
+        : view.type === 'galaxy' && view.focusedPlanet && galaxy
+        ? galaxy.planets.find(p => p.id === view.focusedPlanet)
         : null;
 
     return (
@@ -515,7 +943,7 @@ function Breadcrumb({ view, galaxies, onNavigate }) {
             {galaxy && (
                 <>
                     <span> &gt; </span>
-                    {view.type === 'planet' ? (
+                    {(view.type === 'planet' || view.focusedPlanet) ? (
                         <span className="breadcrumb-link" onClick={() => onNavigate({ type: 'galaxy', id: galaxy.id })}>
                             {galaxy.name}
                         </span>
@@ -634,6 +1062,10 @@ function App() {
   const [textureTheme, setTextureTheme] = useState('default');
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [orbitControlsEnabled, setOrbitControlsEnabled] = useState(true);
+  const [selectedTrace, setSelectedTrace] = useState(null);
+  const [optimizingPlanetIds, setOptimizingPlanetIds] = useState(new Set());
+  const [optimizerSettings, setOptimizerSettings] = useState({});
+  const [thresholdSettings, setThresholdSettings] = useState({});
 
   useEffect(() => {
     const ws = new WebSocket("ws://localhost:8765");
@@ -643,25 +1075,32 @@ function App() {
     ws.onerror = () => setStatusMessage("MCP connection error.");
 
     ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'error') {
-            console.error("MCP Error:", data.message);
-            setStatusMessage(`Error: ${data.message}`);
-        } else {
-            // Merge updates instead of completely replacing state to preserve local changes
+        const message = JSON.parse(event.data);
+        if (message.type === 'error') {
+            console.error("MCP Error:", message.message);
+            setStatusMessage(`Error: ${message.message}`);
+        } else if (message.type === 'update') {
+            const data = message;
+            
+            if (data.optimizing_planets) {
+                setOptimizingPlanetIds(new Set(data.optimizing_planets));
+            }
+
             setGalaxies(prev => {
                 const updated = { ...prev };
                 if (data.galaxies) {
                     Object.keys(data.galaxies).forEach(galaxyId => {
-                        if (updated[galaxyId]) {
-                            // Preserve local position changes
-                            const currentPosition = updated[galaxyId].position;
-                            updated[galaxyId] = { ...data.galaxies[galaxyId] };
-                            if (currentPosition) {
-                                updated[galaxyId].position = currentPosition;
-                            }
+                        const incomingGalaxy = data.galaxies[galaxyId];
+                        const existingGalaxy = prev[galaxyId];
+
+                        if (existingGalaxy) {
+                            updated[galaxyId] = { 
+                                ...existingGalaxy, 
+                                ...incomingGalaxy,
+                                position: existingGalaxy.position 
+                            };
                         } else {
-                            updated[galaxyId] = data.galaxies[galaxyId];
+                            updated[galaxyId] = incomingGalaxy;
                         }
                     });
                 }
@@ -745,10 +1184,93 @@ function App() {
   const handlePlanetDoubleClick = (planetId, galaxyId) => {
       const galaxy = galaxies[galaxyId];
       const planet = galaxy?.planets.find(p => p.id === planetId);
+
       if (galaxy && planet) {
-          setView({ type: 'planet', id: planetId, galaxyId: galaxyId });
+          // Keep galaxy view but add planet info for camera positioning
+          setView({ type: 'galaxy', id: galaxyId, focusedPlanet: planetId });
+          setSelectedTrace(null); // Clear selected trace when focusing on planet
           setStatusMessage(`Focusing on planet ${planet.name} in ${galaxy.name} system.`);
       }
+  };
+
+  const handleTraceSelect = (trace) => {
+    if (view.type === 'planet' || view.focusedPlanet) {
+      setSelectedTrace(trace);
+    } else {
+      setSelectedObject(trace);
+      }
+  };
+
+  const handleAddTraceToPlanet = (galaxyId, planetId, newTrace) => {
+    setGalaxies(prevGalaxies => {
+      const newGalaxies = { ...prevGalaxies };
+      const galaxy = { ...newGalaxies[galaxyId] };
+      if (galaxy && galaxy.planets) {
+        const planetIndex = galaxy.planets.findIndex(p => p.id === planetId);
+        if (planetIndex > -1) {
+          const planet = { ...galaxy.planets[planetIndex] };
+          const updatedTraceHistory = [...(planet.traceHistory || []), newTrace];
+          planet.traceHistory = updatedTraceHistory;
+          
+          const newPlanets = [...galaxy.planets];
+          newPlanets[planetIndex] = planet;
+          galaxy.planets = newPlanets;
+          
+          newGalaxies[galaxyId] = galaxy;
+          return newGalaxies;
+        }
+      }
+      return prevGalaxies; // Return previous state if something not found
+    });
+  };
+
+  const handleStartPlanetOptimization = async (galaxyId, planetId) => {
+    const optimizer = optimizerSettings[planetId] || 'Few-shot Bayesian';
+    setStatusMessage(`Starting optimization for ${galaxies[galaxyId].planets.find(p => p.id === planetId)?.name}...`);
+
+    try {
+        const response = await fetch('http://localhost:8080/api/optimizer/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                galaxy_id: galaxyId,
+                planet_id: planetId,
+                optimizer: optimizer,
+                score_threshold: thresholdSettings[planetId] || 0.95
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 409 && errorData.status === 'already_running') {
+                console.log(`Optimization is already running for planet ${planetId}.`);
+            } else {
+                throw new Error(`Failed to start optimization: ${errorData.message || response.statusText}`);
+            }
+        }
+    } catch (error) {
+        console.error("Error starting optimization:", error);
+        setStatusMessage(`Error: ${error.message}`);
+    }
+  };
+
+  const handleStopPlanetOptimization = async (planetId) => {
+    setStatusMessage(`Stopping optimization for planet ${planetId}...`);
+
+    try {
+        const response = await fetch('http://localhost:8080/api/optimizer/stop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planet_id: planetId }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to stop optimization: ${await response.text()}`);
+        }
+    } catch (error) {
+        console.error("Error stopping optimization:", error);
+        setStatusMessage(`Error: ${error.message}`);
+    }
   };
 
   const filteredGalaxies = Object.values(galaxies).filter(g => {
@@ -762,20 +1284,29 @@ function App() {
     ? filteredGalaxies.filter(g => g.id === view.id)
     : filteredGalaxies;
 
+  // Get current planet for planet view
+  const currentPlanet = view.type === 'planet' && view.galaxyId && view.id
+    ? galaxies[view.galaxyId]?.planets?.find(p => p.id === view.id)
+    : view.type === 'galaxy' && view.focusedPlanet
+    ? galaxies[view.id]?.planets?.find(p => p.id === view.focusedPlanet)
+    : null;
+
     return (
       <div className="App">
         <div className="canvas-container">
           <Canvas camera={{ position: [0, 80, 150], fov: 50 }}>
               <MainScene
-                  galaxies={galaxiesForScene}
+                  galaxies={galaxies}
                   onGalaxyDoubleClick={handleGalaxyDoubleClick}
                   onPlanetDoubleClick={handlePlanetDoubleClick}
-                  onSelect={setSelectedObject}
+                  onSelect={handleTraceSelect}
                   orbitControlsRef={orbitControlsRef}
                   onStationHover={setHoverMessage}
                   textureTheme={textureTheme}
                   onGalaxyMove={handleGalaxyMove}
                   setOrbitControlsEnabled={setOrbitControlsEnabled}
+                  view={view}
+                  onAddTrace={handleAddTraceToPlanet}
               />
               <CameraController
                   view={view}
@@ -787,6 +1318,7 @@ function App() {
         </div>
         <div className="ui-container">
           <Breadcrumb view={view} galaxies={galaxies} onNavigate={setView} />
+          {view.type !== 'planet' && !view.focusedPlanet && (
           <ControlPanel
               onFilterChange={setHealthFilter}
               onSearchChange={setSearchQuery}
@@ -796,12 +1328,44 @@ function App() {
               textureTheme={textureTheme}
               onOnboardClick={() => setIsOnboarding(true)}
           />
+          )}
+          {currentPlanet ? (
+            <PlanetSidebar
+                planet={currentPlanet}
+                selectedTrace={selectedTrace}
+                onClose={() => {
+                    setSelectedTrace(null);
+                    // Clear planet focus and return to galaxy view
+                    if (view.focusedPlanet) {
+                        setView({ type: 'galaxy', id: view.id });
+                    }
+                }}
+                isOptimizing={optimizingPlanetIds.has(currentPlanet.id)}
+                optimizer={optimizerSettings[currentPlanet.id] || 'Few-shot Bayesian'}
+                onOptimizerChange={(optimizer) => {
+                    setOptimizerSettings(prev => ({
+                        ...prev,
+                        [currentPlanet.id]: optimizer
+                    }));
+                }}
+                scoreThreshold={thresholdSettings[currentPlanet.id] || 0.95}
+                onScoreThresholdChange={(threshold) => {
+                    setThresholdSettings(prev => ({
+                        ...prev,
+                        [currentPlanet.id]: threshold
+                    }));
+                }}
+                onStartOptimization={() => handleStartPlanetOptimization(view.id, currentPlanet.id)}
+                onStopOptimization={() => handleStopPlanetOptimization(currentPlanet.id)}
+            />
+          ) : (
           <StatsBox 
             selectedObject={selectedObject} 
             onDeleteAgent={handleDeleteAgent}
             onClose={() => setSelectedObject(null)}
             onUpdateMetricMapping={handleUpdateMetricMapping}
           />
+          )}
           <StatusBar message={statusMessage} hoverMessage={hoverMessage} />
           {isOnboarding && (
             <OnboardingForm 

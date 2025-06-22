@@ -446,3 +446,388 @@ body,
   height: 40vmin;
   pointer-events: none;
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Planet View Styles */
+.planet-sidebar {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  width: 350px;
+  font-family: 'Courier New', Courier, monospace;
+  border: 1px solid #444;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.planet-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #555;
+}
+
+.planet-sidebar-header h2 {
+  margin: 0;
+  color: #66ccff;
+  font-size: 1.4em;
+}
+
+.planet-sidebar-content h2 {
+  margin: 0 0 20px 0;
+  color: #66ccff;
+  font-size: 1.6em;
+  text-align: center;
+}
+
+.planet-sidebar-content h3 {
+  margin: 15px 0 10px 0;
+  color: #aaddff;
+  font-size: 1.2em;
+  border-bottom: 1px solid #555;
+  padding-bottom: 5px;
+}
+
+.planet-sidebar-content h4 {
+  margin: 10px 0 5px 0;
+  color: #88ccff;
+  font-size: 1em;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.metric-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+.metric-label {
+  color: #aaa;
+  font-size: 0.9em;
+}
+
+.metric-value {
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.95em;
+}
+
+.prompt-text-section {
+  margin: 20px 0;
+}
+
+.prompt-text {
+  background-color: #2c2c3e;
+  border: 1px solid #4a4a6a;
+  padding: 10px;
+  border-radius: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+  font-family: 'Courier New', Courier, monospace;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #e0e0e0;
+}
+
+.optimizer-selection,
+.threshold-input {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.optimizer-selection label,
+.threshold-input label {
+  display: block;
+  color: #a0a0b8;
+  margin-bottom: 8px;
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+.optimizer-selection select,
+.threshold-input input {
+  width: 100%;
+  padding: 10px;
+  background-color: #1a1a2e;
+  border: 1px solid #4a4a6a;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 1em;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.optimizer-selection select:focus,
+.threshold-input input:focus {
+  outline: none;
+  border-color: #7b7be5;
+  box-shadow: 0 0 0 2px rgba(123, 123, 229, 0.3);
+}
+
+.optimizer-selection select:disabled,
+.threshold-input input:disabled {
+  background-color: #2c2c3e;
+  color: #6a6a7a;
+  cursor: not-allowed;
+  border-color: #4a4a6a;
+}
+
+/* Style for number input arrows */
+.threshold-input input::-webkit-outer-spin-button,
+.threshold-input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.threshold-input input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.deployed-version-section,
+.selected-trace-section {
+  margin-bottom: 25px;
+  padding: 15px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.selected-trace-section {
+  border-left: 3px solid #66ccff;
+}
+
+.back-button {
+  background: linear-gradient(135deg, #4a90e2, #357abd);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9em;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.back-button:hover {
+  background: linear-gradient(135deg, #357abd, #2d5aa0);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.back-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Animation for new trace entries */
+@keyframes traceHighlight {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.trace-highlight {
+  animation: traceHighlight 1s ease-in-out;
+}
+
+/* Responsive adjustments for planet view */
+@media (max-width: 768px) {
+  .planet-sidebar {
+    width: calc(100vw - 40px);
+    right: 20px;
+    left: 20px;
+    max-width: none;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Optimization Controls */
+.optimization-controls {
+  background: rgba(0, 0, 0, 0.8);
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #444;
+  color: white;
+  font-size: 12px;
+  white-space: nowrap;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.optimization-controls strong {
+  color: #66ccff;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.optimization-btn {
+  background: #44ff44;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s ease;
+}
+
+.optimization-btn:hover {
+  background: #22dd22;
+  transform: scale(1.05);
+}
+
+.optimization-btn.stop {
+  background: #ff4444;
+}
+
+.optimization-btn.stop:hover {
+  background: #dd2222;
+}
+
+.optimization-status {
+  margin-top: 5px;
+  font-size: 10px;
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Trace Node Highlighting */
+.trace-node-new {
+  animation: traceHighlight 1s ease-in-out;
+}
+
+.trace-node-top {
+  animation: traceHighlightGold 1s ease-in-out;
+}
+
+@keyframes traceHighlight {
+
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+  }
+}
+
+@keyframes traceHighlightGold {
+
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+  }
+}
+
+.planet-sidebar-content {
+  padding: 20px;
+}
+
+.planet-sidebar .optimization-controls {
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.planet-sidebar .optimization-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 1em;
+  background-color: #4CAF50;
+  /* Green */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.planet-sidebar .optimization-btn:hover {
+  background-color: #45a049;
+}
+
+.planet-sidebar .optimization-btn.stop {
+  background-color: #f44336;
+  /* Red */
+}
+
+.planet-sidebar .optimization-btn.stop:hover {
+  background-color: #da190b;
+}
+
+.planet-sidebar .optimization-status {
+  margin-top: 10px;
+  font-style: italic;
+  color: #a0a0a0;
+  font-size: 0.9em;
+}
+
+.planet-sidebar h2,
+.planet-sidebar h3 {
+  margin-top: 0;
+  color: #EAEAEA;
+}
