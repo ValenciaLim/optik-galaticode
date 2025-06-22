@@ -44,7 +44,7 @@ function MetricConfig({ galaxy, onUpdateMapping }) {
 
     const handleSave = async () => {
         try {
-            const response = await fetch(`http://localhost:8080/api/agent/${galaxy.id}/metric_mapping`, {
+            const response = await fetch(`http://localhost:8080/api/agent/${galaxy.id}/config/metrics`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ metricMapping })

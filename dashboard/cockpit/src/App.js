@@ -998,7 +998,7 @@ function Breadcrumb({ view, galaxies, onNavigate }) {
 
     return (
         <div className="breadcrumb">
-            <span className="breadcrumb-link" onClick={() => onNavigate({ type: 'universe', id: '' })}>Universe</span>
+            <span className="breadcrumb-link" onClick={() => onNavigate({ type: 'universe', id: 'test' })}>Universe</span>
             {galaxy && (
                 <>
                     <span> &gt; </span>
@@ -1152,7 +1152,7 @@ function ControlPanel({ onFilterChange, onSearchChange, searchQuery, healthFilte
 function App() {
   const [galaxies, setGalaxies] = useState({});
   const [selectedObject, setSelectedObject] = useState(null);
-  const [view, setView] = useState({ type: 'universe', id: '' });
+  const [view, setView] = useState({ type: 'universe', id: 'test' });
   const [searchQuery, setSearchQuery] = useState('');
   const [healthFilter, setHealthFilter] = useState('all');
   const [statusMessage, setStatusMessage] = useState("MCP ready. Awaiting instructions.");
