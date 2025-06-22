@@ -1,4 +1,4 @@
-# GalactiCode: The AI Agent Cockpit
+# GalactiCode: The AI Agent Cockpit for Comet Opik
 
 Welcome to GalactiCode, a dynamic 3D monitoring and management dashboard for your AI agents. This application provides a celestial-themed interface to visualize, test, and optimize your AI prompts in real-time. Each AI agent is represented as a galaxy, with its various prompt families orbiting as planets, allowing for intuitive navigation and control of your entire AI ecosystem.
 
