@@ -1,0 +1,93 @@
+.onboarding-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.onboarding-form h3 {
+    text-align: center;
+    margin-top: 0;
+    color: #aaddff;
+}
+
+.onboarding-form label {
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #aaddff;
+}
+
+.onboarding-form input[type="text"],
+.onboarding-form input[type="url"],
+.onboarding-form input[type="password"] {
+    background-color: #1a1a2a;
+    color: white;
+    border: 1px solid #334;
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 1em;
+}
+
+.onboarding-form fieldset {
+    border: 1px solid #334;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.onboarding-form legend {
+    padding: 0 10px;
+    color: #aaddff;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.metric-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #1a1a2a;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.metric-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.form-actions button {
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: 1px solid #99ccff;
+    background-color: transparent;
+    color: #99ccff;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.form-actions .btn-submit {
+    background-color: #66ccff;
+    color: #0a1428;
+    border-color: #66ccff;
+}
+
+.form-actions .btn-cancel {
+    background-color: transparent;
+    color: #ff6666;
+    border-color: #ff6666;
+}
+
+.form-actions .btn-cancel:hover {
+    background-color: #ff6666;
+    color: #1a1a2a;
+}
