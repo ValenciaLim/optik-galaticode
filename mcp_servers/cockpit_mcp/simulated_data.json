@@ -11,12 +11,20 @@
             "hue": 0.6
         },
         "status": "stable",
+        "status_message": "All systems operating within normal parameters.",
+        "config": {
+            "metricMapping": {
+                "planetSize": "score",
+                "planetPosition": "factuality",
+                "planetSpeed": "speed"
+            }
+        },
         "planets": [
             {
                 "id": "alpha-p1",
                 "name": "Customer Inquiry Classifier",
                 "orbitRadius": 15,
-                "status": "deployed",
+                "status": "active",
                 "deployedVersion": {
                     "id": "v0987",
                     "text": "Initial prompt for classifying customer inquiries.",
@@ -28,91 +36,13 @@
                     },
                     "timestamp": "2023-01-01T12:00:00Z"
                 },
-                "traceHistory": [
-                    {
-                        "id": "v94622",
-                        "text": "Initial prompt for classifying customer inquiries. Additional instruction: Be more concise and to the point. Additional instruction: Be more direct. Additional instruction: Incorporate a compelling narrative. Additional instruction: Use simpler language. Additional instruction: Sound more empathetic. Additional instruction: Use simpler language. Additional instruction: Incorporate a compelling narrative.",
-                        "timestamp": "2025-06-22T07:20:07.809638",
-                        "evaluation": {
-                            "score": 0.82,
-                            "factuality": 0.95,
-                            "hallucination": 0.12,
-                            "speed": 486
-                        }
-                    },
-                    {
-                        "id": "v17419",
-                        "text": "Initial prompt for classifying customer inquiries. Additional instruction: Be more concise and to the point. Additional instruction: Be more direct. Additional instruction: Incorporate a compelling narrative. Additional instruction: Use simpler language. Additional instruction: Sound more empathetic. Additional instruction: Use simpler language.",
-                        "timestamp": "2025-06-22T07:20:07.809628",
-                        "evaluation": {
-                            "score": 0.83,
-                            "factuality": 0.97,
-                            "hallucination": 0.09,
-                            "speed": 347
-                        }
-                    },
-                    {
-                        "id": "v40537",
-                        "text": "Initial prompt for classifying customer inquiries. Additional instruction: Be more concise and to the point. Additional instruction: Be more direct. Additional instruction: Incorporate a compelling narrative. Additional instruction: Use simpler language. Additional instruction: Sound more empathetic.",
-                        "timestamp": "2025-06-22T07:20:07.809622",
-                        "evaluation": {
-                            "score": 0.87,
-                            "factuality": 0.87,
-                            "hallucination": 0.12,
-                            "speed": 283
-                        }
-                    },
-                    {
-                        "id": "v55472",
-                        "text": "Initial prompt for classifying customer inquiries. Additional instruction: Be more concise and to the point. Additional instruction: Be more direct. Additional instruction: Incorporate a compelling narrative. Additional instruction: Use simpler language.",
-                        "timestamp": "2025-06-22T07:20:07.809616",
-                        "evaluation": {
-                            "score": 0.79,
-                            "factuality": 0.89,
-                            "hallucination": 0.05,
-                            "speed": 262
-                        }
-                    },
-                    {
-                        "id": "v31257",
-                        "text": "Initial prompt for classifying customer inquiries. Additional instruction: Be more concise and to the point. Additional instruction: Be more direct. Additional instruction: Incorporate a compelling narrative.",
-                        "timestamp": "2025-06-22T07:20:07.809607",
-                        "evaluation": {
-                            "score": 0.88,
-                            "factuality": 0.93,
-                            "hallucination": 0.14,
-                            "speed": 340
-                        }
-                    },
-                    {
-                        "id": "v57741",
-                        "text": "Initial prompt for classifying customer inquiries. Additional instruction: Be more concise and to the point. Additional instruction: Be more direct.",
-                        "timestamp": "2025-06-22T07:20:07.809597",
-                        "evaluation": {
-                            "score": 0.96,
-                            "factuality": 0.86,
-                            "hallucination": 0.11,
-                            "speed": 465
-                        }
-                    },
-                    {
-                        "id": "v16336",
-                        "text": "Initial prompt for classifying customer inquiries. Additional instruction: Be more concise and to the point.",
-                        "timestamp": "2025-06-22T07:20:07.809554",
-                        "evaluation": {
-                            "score": 0.99,
-                            "factuality": 0.91,
-                            "hallucination": 0.12,
-                            "speed": 156
-                        }
-                    }
-                ]
+                "traceHistory": []
             },
             {
                 "id": "alpha-p2",
                 "name": "Sentiment Analyzer",
                 "orbitRadius": 20,
-                "status": "candidate",
+                "status": "active",
                 "deployedVersion": {
                     "id": "v0988",
                     "text": "A new prompt for analyzing customer sentiment.",
@@ -124,80 +54,13 @@
                     },
                     "timestamp": "2023-01-02T14:00:00Z"
                 },
-                "traceHistory": [
-                    {
-                        "id": "v30094",
-                        "text": "A new prompt for analyzing customer sentiment. Additional instruction: Summarize the main point in one sentence. Additional instruction: Incorporate a compelling narrative. Additional instruction: Explain it like I'm five. Additional instruction: Add a historical context. Additional instruction: Cite sources. Additional instruction: Incorporate a compelling narrative.",
-                        "timestamp": "2025-06-22T07:20:07.809680",
-                        "evaluation": {
-                            "score": 0.61,
-                            "factuality": 0.94,
-                            "hallucination": 0.06,
-                            "speed": 185
-                        }
-                    },
-                    {
-                        "id": "v24500",
-                        "text": "A new prompt for analyzing customer sentiment. Additional instruction: Summarize the main point in one sentence. Additional instruction: Incorporate a compelling narrative. Additional instruction: Explain it like I'm five. Additional instruction: Add a historical context. Additional instruction: Cite sources.",
-                        "timestamp": "2025-06-22T07:20:07.809674",
-                        "evaluation": {
-                            "score": 0.64,
-                            "factuality": 0.85,
-                            "hallucination": 0.05,
-                            "speed": 399
-                        }
-                    },
-                    {
-                        "id": "v24229",
-                        "text": "A new prompt for analyzing customer sentiment. Additional instruction: Summarize the main point in one sentence. Additional instruction: Incorporate a compelling narrative. Additional instruction: Explain it like I'm five. Additional instruction: Add a historical context.",
-                        "timestamp": "2025-06-22T07:20:07.809667",
-                        "evaluation": {
-                            "score": 0.67,
-                            "factuality": 0.92,
-                            "hallucination": 0.1,
-                            "speed": 149
-                        }
-                    },
-                    {
-                        "id": "v95162",
-                        "text": "A new prompt for analyzing customer sentiment. Additional instruction: Summarize the main point in one sentence. Additional instruction: Incorporate a compelling narrative. Additional instruction: Explain it like I'm five.",
-                        "timestamp": "2025-06-22T07:20:07.809662",
-                        "evaluation": {
-                            "score": 0.66,
-                            "factuality": 0.86,
-                            "hallucination": 0.12,
-                            "speed": 212
-                        }
-                    },
-                    {
-                        "id": "v20916",
-                        "text": "A new prompt for analyzing customer sentiment. Additional instruction: Summarize the main point in one sentence. Additional instruction: Incorporate a compelling narrative.",
-                        "timestamp": "2025-06-22T07:20:07.809655",
-                        "evaluation": {
-                            "score": 0.71,
-                            "factuality": 0.85,
-                            "hallucination": 0.15,
-                            "speed": 122
-                        }
-                    },
-                    {
-                        "id": "v22899",
-                        "text": "A new prompt for analyzing customer sentiment. Additional instruction: Summarize the main point in one sentence.",
-                        "timestamp": "2025-06-22T07:20:07.809647",
-                        "evaluation": {
-                            "score": 0.78,
-                            "factuality": 0.92,
-                            "hallucination": 0.11,
-                            "speed": 176
-                        }
-                    }
-                ]
+                "traceHistory": []
             },
             {
                 "id": "alpha-p3",
                 "name": "Legacy Keyword Matcher",
                 "orbitRadius": 25,
-                "status": "deployed",
+                "status": "inactive",
                 "deployedVersion": {
                     "id": "v0989",
                     "text": "An old prompt that relies on keyword matching.",
@@ -209,375 +72,70 @@
                     },
                     "timestamp": "2023-01-03T16:00:00Z"
                 },
-                "traceHistory": [
-                    {
-                        "id": "v70598",
-                        "text": "An old prompt that relies on keyword matching. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Be more expressive and use emojis. Additional instruction: Sound more empathetic. Additional instruction: Explain it like I'm five. Additional instruction: Add a historical context. Additional instruction: Format the response as a list. Additional instruction: Provide a step-by-step guide. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Expand on the previous point.",
-                        "timestamp": "2025-06-22T07:20:07.809732",
-                        "evaluation": {
-                            "score": 0.57,
-                            "factuality": 0.96,
-                            "hallucination": 0.05,
-                            "speed": 367
-                        }
-                    },
-                    {
-                        "id": "v71668",
-                        "text": "An old prompt that relies on keyword matching. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Be more expressive and use emojis. Additional instruction: Sound more empathetic. Additional instruction: Explain it like I'm five. Additional instruction: Add a historical context. Additional instruction: Format the response as a list. Additional instruction: Provide a step-by-step guide. Additional instruction: Ensure the answer is factually accurate.",
-                        "timestamp": "2025-06-22T07:20:07.809726",
-                        "evaluation": {
-                            "score": 0.57,
-                            "factuality": 0.91,
-                            "hallucination": 0.13,
-                            "speed": 205
-                        }
-                    },
-                    {
-                        "id": "v70247",
-                        "text": "An old prompt that relies on keyword matching. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Be more expressive and use emojis. Additional instruction: Sound more empathetic. Additional instruction: Explain it like I'm five. Additional instruction: Add a historical context. Additional instruction: Format the response as a list. Additional instruction: Provide a step-by-step guide.",
-                        "timestamp": "2025-06-22T07:20:07.809719",
-                        "evaluation": {
-                            "score": 0.57,
-                            "factuality": 0.86,
-                            "hallucination": 0.14,
-                            "speed": 243
-                        }
-                    },
-                    {
-                        "id": "v32831",
-                        "text": "An old prompt that relies on keyword matching. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Be more expressive and use emojis. Additional instruction: Sound more empathetic. Additional instruction: Explain it like I'm five. Additional instruction: Add a historical context. Additional instruction: Format the response as a list.",
-                        "timestamp": "2025-06-22T07:20:07.809714",
-                        "evaluation": {
-                            "score": 0.53,
-                            "factuality": 0.93,
-                            "hallucination": 0.07,
-                            "speed": 356
-                        }
-                    },
-                    {
-                        "id": "v13172",
-                        "text": "An old prompt that relies on keyword matching. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Be more expressive and use emojis. Additional instruction: Sound more empathetic. Additional instruction: Explain it like I'm five. Additional instruction: Add a historical context.",
-                        "timestamp": "2025-06-22T07:20:07.809708",
-                        "evaluation": {
-                            "score": 0.49,
-                            "factuality": 0.9,
-                            "hallucination": 0.01,
-                            "speed": 198
-                        }
-                    },
-                    {
-                        "id": "v88015",
-                        "text": "An old prompt that relies on keyword matching. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Be more expressive and use emojis. Additional instruction: Sound more empathetic. Additional instruction: Explain it like I'm five.",
-                        "timestamp": "2025-06-22T07:20:07.809703",
-                        "evaluation": {
-                            "score": 0.48,
-                            "factuality": 0.98,
-                            "hallucination": 0.07,
-                            "speed": 368
-                        }
-                    },
-                    {
-                        "id": "v54825",
-                        "text": "An old prompt that relies on keyword matching. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Be more expressive and use emojis. Additional instruction: Sound more empathetic.",
-                        "timestamp": "2025-06-22T07:20:07.809698",
-                        "evaluation": {
-                            "score": 0.52,
-                            "factuality": 0.89,
-                            "hallucination": 0.07,
-                            "speed": 178
-                        }
-                    },
-                    {
-                        "id": "v15319",
-                        "text": "An old prompt that relies on keyword matching. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Be more expressive and use emojis.",
-                        "timestamp": "2025-06-22T07:20:07.809692",
-                        "evaluation": {
-                            "score": 0.5,
-                            "factuality": 0.98,
-                            "hallucination": 0.11,
-                            "speed": 157
-                        }
-                    },
-                    {
-                        "id": "v24296",
-                        "text": "An old prompt that relies on keyword matching. Additional instruction: Ensure the answer is factually accurate.",
-                        "timestamp": "2025-06-22T07:20:07.809687",
-                        "evaluation": {
-                            "score": 0.55,
-                            "factuality": 0.92,
-                            "hallucination": 0.1,
-                            "speed": 311
-                        }
-                    }
-                ]
+                "traceHistory": []
             }
         ],
-        "comets": [],
-        "config": {
-            "apiUrl": "http://localhost:8081/mock-telemetry/alpha",
-            "authToken": "alpha-secret-token",
-            "opikMetrics": [
-                "factuality",
-                "hallucination"
-            ],
-            "metricMapping": {
-                "planetSize": "score",
-                "planetPosition": "score"
-            }
-        }
+        "comets": []
     },
     "galaxy-beta": {
         "id": "galaxy-beta",
         "name": "Beta Quadrant Agent",
         "position": [
-            50,
+            40,
             0,
-            20
+            30
         ],
         "theme": {
             "hue": 0.1
         },
-        "status": "optimizing",
+        "status": "critical",
+        "status_message": "Performance degradation detected in multiple prompts.",
+        "config": {
+            "metricMapping": {
+                "planetSize": "score",
+                "planetPosition": "",
+                "planetSpeed": ""
+            }
+        },
         "planets": [
             {
                 "id": "beta-p1",
-                "name": "Intent Classifier",
+                "name": "Code Generator",
                 "orbitRadius": 12,
-                "status": "deployed",
+                "status": "active",
                 "deployedVersion": {
                     "id": "v1123",
-                    "text": "Classify the user's intent based on their initial query.",
+                    "text": "Generate Python code snippets based on user requests.",
                     "evaluation": {
-                        "score": 0.65,
-                        "factuality": 0.7,
-                        "hallucination": 0.45,
-                        "speed": 90
+                        "score": 0.88,
+                        "factuality": 0.9,
+                        "hallucination": 0.1,
+                        "speed": 350
                     },
-                    "timestamp": "2023-01-10T10:00:00Z"
+                    "timestamp": "2023-02-01T10:00:00Z"
                 },
-                "traceHistory": [
-                    {
-                        "id": "v74578",
-                        "text": "Classify the user's intent based on their initial query. Additional instruction: Expand on the previous point. Additional instruction: Explain it like I'm five. Additional instruction: Use simpler language. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Summarize the main point in one sentence. Additional instruction: Adopt a professional tone. Additional instruction: Be more expressive and use emojis. Additional instruction: Be more expressive and use emojis.",
-                        "timestamp": "2025-06-22T07:20:07.810053",
-                        "evaluation": {
-                            "score": 0.68,
-                            "factuality": 0.94,
-                            "hallucination": 0.04,
-                            "speed": 121
-                        }
-                    },
-                    {
-                        "id": "v47056",
-                        "text": "Classify the user's intent based on their initial query. Additional instruction: Expand on the previous point. Additional instruction: Explain it like I'm five. Additional instruction: Use simpler language. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Summarize the main point in one sentence. Additional instruction: Adopt a professional tone. Additional instruction: Be more expressive and use emojis.",
-                        "timestamp": "2025-06-22T07:20:07.810047",
-                        "evaluation": {
-                            "score": 0.62,
-                            "factuality": 0.93,
-                            "hallucination": 0.04,
-                            "speed": 112
-                        }
-                    },
-                    {
-                        "id": "v86909",
-                        "text": "Classify the user's intent based on their initial query. Additional instruction: Expand on the previous point. Additional instruction: Explain it like I'm five. Additional instruction: Use simpler language. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Summarize the main point in one sentence. Additional instruction: Adopt a professional tone.",
-                        "timestamp": "2025-06-22T07:20:07.810041",
-                        "evaluation": {
-                            "score": 0.67,
-                            "factuality": 0.93,
-                            "hallucination": 0.09,
-                            "speed": 415
-                        }
-                    },
-                    {
-                        "id": "v63460",
-                        "text": "Classify the user's intent based on their initial query. Additional instruction: Expand on the previous point. Additional instruction: Explain it like I'm five. Additional instruction: Use simpler language. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Summarize the main point in one sentence.",
-                        "timestamp": "2025-06-22T07:20:07.810035",
-                        "evaluation": {
-                            "score": 0.62,
-                            "factuality": 0.94,
-                            "hallucination": 0.1,
-                            "speed": 304
-                        }
-                    },
-                    {
-                        "id": "v23158",
-                        "text": "Classify the user's intent based on their initial query. Additional instruction: Expand on the previous point. Additional instruction: Explain it like I'm five. Additional instruction: Use simpler language. Additional instruction: Ensure the answer is factually accurate. Additional instruction: Ensure the answer is factually accurate.",
-                        "timestamp": "2025-06-22T07:20:07.810029",
-                        "evaluation": {
-                            "score": 0.58,
-                            "factuality": 0.96,
-                            "hallucination": 0.12,
-                            "speed": 193
-                        }
-                    },
-                    {
-                        "id": "v20680",
-                        "text": "Classify the user's intent based on their initial query. Additional instruction: Expand on the previous point. Additional instruction: Explain it like I'm five. Additional instruction: Use simpler language. Additional instruction: Ensure the answer is factually accurate.",
-                        "timestamp": "2025-06-22T07:20:07.810022",
-                        "evaluation": {
-                            "score": 0.62,
-                            "factuality": 0.93,
-                            "hallucination": 0.11,
-                            "speed": 115
-                        }
-                    },
-                    {
-                        "id": "v88503",
-                        "text": "Classify the user's intent based on their initial query. Additional instruction: Expand on the previous point. Additional instruction: Explain it like I'm five. Additional instruction: Use simpler language.",
-                        "timestamp": "2025-06-22T07:20:07.810015",
-                        "evaluation": {
-                            "score": 0.63,
-                            "factuality": 0.89,
-                            "hallucination": 0.13,
-                            "speed": 254
-                        }
-                    },
-                    {
-                        "id": "v59227",
-                        "text": "Classify the user's intent based on their initial query. Additional instruction: Expand on the previous point. Additional instruction: Explain it like I'm five.",
-                        "timestamp": "2025-06-22T07:20:07.810002",
-                        "evaluation": {
-                            "score": 0.6,
-                            "factuality": 0.93,
-                            "hallucination": 0.05,
-                            "speed": 268
-                        }
-                    },
-                    {
-                        "id": "v90492",
-                        "text": "Classify the user's intent based on their initial query. Additional instruction: Expand on the previous point.",
-                        "timestamp": "2025-06-22T07:20:07.809739",
-                        "evaluation": {
-                            "score": 0.59,
-                            "factuality": 0.89,
-                            "hallucination": 0.1,
-                            "speed": 261
-                        }
-                    }
-                ]
+                "traceHistory": []
             },
             {
-                "id": "beta-p3",
-                "name": "Escalation Predictor",
-                "orbitRadius": 24,
-                "status": "candidate",
+                "id": "beta-p2",
+                "name": "SQL Query Builder",
+                "orbitRadius": 18,
+                "status": "active",
                 "deployedVersion": {
-                    "id": "v3001",
-                    "text": "Predict if the user is frustrated and needs to be escalated to a human agent.",
+                    "id": "v1124",
+                    "text": "Build complex SQL queries from natural language.",
                     "evaluation": {
-                        "score": 0.91,
-                        "factuality": 0.96,
-                        "hallucination": 0.07,
-                        "speed": 150
+                        "score": 0.49,
+                        "factuality": 0.55,
+                        "hallucination": 0.4,
+                        "speed": 450
                     },
-                    "timestamp": "2023-01-12T16:00:00Z"
+                    "timestamp": "2023-02-05T18:00:00Z"
                 },
-                "traceHistory": [
-                    {
-                        "id": "v20184",
-                        "text": "Predict if the user is frustrated and needs to be escalated to a human agent. Additional instruction: Format the response as a list. Additional instruction: Expand on the previous point. Additional instruction: Focus on the key takeaways. Additional instruction: Summarize the main point in one sentence. Additional instruction: Provide a step-by-step guide. Additional instruction: Summarize the main point in one sentence. Additional instruction: Add a historical context. Additional instruction: Use a persuasive tone.",
-                        "timestamp": "2025-06-22T07:20:07.810106",
-                        "evaluation": {
-                            "score": 0.89,
-                            "factuality": 0.93,
-                            "hallucination": 0.09,
-                            "speed": 325
-                        }
-                    },
-                    {
-                        "id": "v20795",
-                        "text": "Predict if the user is frustrated and needs to be escalated to a human agent. Additional instruction: Format the response as a list. Additional instruction: Expand on the previous point. Additional instruction: Focus on the key takeaways. Additional instruction: Summarize the main point in one sentence. Additional instruction: Provide a step-by-step guide. Additional instruction: Summarize the main point in one sentence. Additional instruction: Add a historical context.",
-                        "timestamp": "2025-06-22T07:20:07.810101",
-                        "evaluation": {
-                            "score": 0.94,
-                            "factuality": 0.94,
-                            "hallucination": 0.08,
-                            "speed": 249
-                        }
-                    },
-                    {
-                        "id": "v71415",
-                        "text": "Predict if the user is frustrated and needs to be escalated to a human agent. Additional instruction: Format the response as a list. Additional instruction: Expand on the previous point. Additional instruction: Focus on the key takeaways. Additional instruction: Summarize the main point in one sentence. Additional instruction: Provide a step-by-step guide. Additional instruction: Summarize the main point in one sentence.",
-                        "timestamp": "2025-06-22T07:20:07.810095",
-                        "evaluation": {
-                            "score": 0.9,
-                            "factuality": 0.96,
-                            "hallucination": 0.1,
-                            "speed": 312
-                        }
-                    },
-                    {
-                        "id": "v18698",
-                        "text": "Predict if the user is frustrated and needs to be escalated to a human agent. Additional instruction: Format the response as a list. Additional instruction: Expand on the previous point. Additional instruction: Focus on the key takeaways. Additional instruction: Summarize the main point in one sentence. Additional instruction: Provide a step-by-step guide.",
-                        "timestamp": "2025-06-22T07:20:07.810089",
-                        "evaluation": {
-                            "score": 0.86,
-                            "factuality": 0.87,
-                            "hallucination": 0.14,
-                            "speed": 476
-                        }
-                    },
-                    {
-                        "id": "v67578",
-                        "text": "Predict if the user is frustrated and needs to be escalated to a human agent. Additional instruction: Format the response as a list. Additional instruction: Expand on the previous point. Additional instruction: Focus on the key takeaways. Additional instruction: Summarize the main point in one sentence.",
-                        "timestamp": "2025-06-22T07:20:07.810083",
-                        "evaluation": {
-                            "score": 0.9,
-                            "factuality": 0.98,
-                            "hallucination": 0.14,
-                            "speed": 428
-                        }
-                    },
-                    {
-                        "id": "v42312",
-                        "text": "Predict if the user is frustrated and needs to be escalated to a human agent. Additional instruction: Format the response as a list. Additional instruction: Expand on the previous point. Additional instruction: Focus on the key takeaways.",
-                        "timestamp": "2025-06-22T07:20:07.810078",
-                        "evaluation": {
-                            "score": 0.91,
-                            "factuality": 0.97,
-                            "hallucination": 0.12,
-                            "speed": 442
-                        }
-                    },
-                    {
-                        "id": "v98607",
-                        "text": "Predict if the user is frustrated and needs to be escalated to a human agent. Additional instruction: Format the response as a list. Additional instruction: Expand on the previous point.",
-                        "timestamp": "2025-06-22T07:20:07.810072",
-                        "evaluation": {
-                            "score": 0.85,
-                            "factuality": 0.96,
-                            "hallucination": 0.12,
-                            "speed": 209
-                        }
-                    },
-                    {
-                        "id": "v82721",
-                        "text": "Predict if the user is frustrated and needs to be escalated to a human agent. Additional instruction: Format the response as a list.",
-                        "timestamp": "2025-06-22T07:20:07.810062",
-                        "evaluation": {
-                            "score": 0.85,
-                            "factuality": 0.93,
-                            "hallucination": 0.12,
-                            "speed": 212
-                        }
-                    }
-                ]
+                "traceHistory": []
             }
         ],
-        "comets": [],
-        "config": {
-            "apiUrl": "http://localhost:8081/mock-telemetry/beta",
-            "authToken": "beta-secret-token",
-            "opikMetrics": [
-                "factuality",
-                "speed"
-            ],
-            "metricMapping": {
-                "planetSize": "factuality",
-                "planetPosition": "score"
-            }
-        }
+        "comets": []
     },
     "galaxy-gamma": {
         "id": "galaxy-gamma",
@@ -597,7 +155,7 @@
                 "id": "gamma-p1",
                 "name": "Toxicity Filter",
                 "orbitRadius": 20,
-                "status": "deployed",
+                "status": "active",
                 "deployedVersion": {
                     "id": "v4001",
                     "text": "Filter out toxic content from user-generated text.",

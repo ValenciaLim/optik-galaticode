@@ -10,6 +10,7 @@ import traceback
 import httpx
 from aiohttp import web
 import aiohttp_cors
+from typing import Set, Dict, Any
 
 # --- Constants and Configuration ---
 PROMPT_MODIFIERS = [
@@ -32,13 +33,13 @@ def load_initial_state():
         return json.load(f)
 
 # The global state of the universe
-galaxies = load_initial_state()
-clients = set()
+galaxies: Dict[str, Any] = load_initial_state()
+clients: Set[web.WebSocketResponse] = set()
 # In-memory store for active optimization tasks
-active_optimizations = {} # {planet_id: asyncio.Task}
+active_optimizations: Dict[str, asyncio.Task] = {} # {planet_id: asyncio.Task}
 
 # --- Image Proxy Logic ---
-async def get_texture(request):
+async def get_texture(request: web.Request) -> web.Response:
     theme = request.query.get('theme')
     item_id = request.query.get('id')
 
@@ -66,7 +67,7 @@ async def get_texture(request):
             print(f"An error occurred while requesting {exc.request.url!r}.")
             return web.Response(status=500, text=f"Error fetching image: {exc}")
 
-async def handle_onboard(request):
+async def handle_onboard(request: web.Request) -> web.Response:
     """Handles onboarding of a new agent."""
     try:
         data = await request.json()
@@ -93,14 +94,9 @@ async def handle_onboard(request):
         }
         
         galaxies[agent_id] = new_galaxy
-
-        # Persist the new state - THIS IS REMOVED TO PREVENT FILE I/O ERRORS
-        # In a production system, this would write to a database, not a file.
-        # with open(INITIAL_STATE_FILE, 'w') as f:
-        #     json.dump(galaxies, f, indent=4)
         
         # Announce the update to all clients
-        await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
+        await broadcast_message({"type": "update", "payload": {"galaxies": copy.deepcopy(galaxies)}})
 
         return web.Response(status=200, text=f"Agent {agent_id} onboarded successfully.")
 
@@ -109,7 +105,7 @@ async def handle_onboard(request):
         traceback.print_exc()
         return web.Response(status=500, text="Internal Server Error during onboarding.")
 
-def _update_galaxy_status_based_on_planets(galaxy):
+def _update_galaxy_status_based_on_planets(galaxy: Dict[str, Any]) -> None:
     """
     Recalculates the galaxy's status based on the average score of its planets.
     This is called when an optimization completes or is cancelled.
@@ -133,7 +129,7 @@ def _update_galaxy_status_based_on_planets(galaxy):
 
 # --- Frontend-driven Optimizer Endpoints ---
 
-async def handle_optimizer_start(request):
+async def handle_optimizer_start(request: web.Request) -> web.Response:
     """
     Starts a continuous optimization background task for a given planet.
     """
@@ -148,9 +144,11 @@ async def handle_optimizer_start(request):
             return web.json_response({"status": "already_running"}, status=409)
 
         galaxy = galaxies.get(galaxy_id)
+        if not galaxy:
+            return web.Response(status=404, text="Galaxy not found")
         planet = next((p for p in galaxy.get('planets', []) if p['id'] == planet_id), None)
-        if not galaxy or not planet:
-            return web.Response(status=404, text="Galaxy or Planet not found")
+        if not planet:
+            return web.Response(status=404, text="Planet not found")
 
         # Start the background task
         task = asyncio.create_task(
@@ -160,7 +158,7 @@ async def handle_optimizer_start(request):
 
         # Update galaxy status and broadcast
         galaxy["status"] = "optimizing"
-        await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
+        await broadcast_message({"type": "update", "payload": {"galaxies": copy.deepcopy(galaxies)}})
         
         return web.json_response({"status": "success", "message": f"Optimization started for planet {planet_id}."})
 
@@ -169,7 +167,7 @@ async def handle_optimizer_start(request):
         traceback.print_exc()
         return web.Response(status=500, text="Internal Server Error")
 
-async def handle_optimizer_generate_variant(request):
+async def handle_optimizer_generate_variant(request: web.Request) -> web.Response:
     """Generates and evaluates a single new prompt variant."""
     try:
         data = await request.json()
@@ -177,8 +175,10 @@ async def handle_optimizer_generate_variant(request):
         planet_id = data.get("planet_id")
 
         galaxy = galaxies.get(galaxy_id)
+        if not galaxy:
+            return web.Response(status=404, text="Galaxy or Planet not found")
         planet = next((p for p in galaxy.get('planets', []) if p['id'] == planet_id), None)
-        if not galaxy or not planet:
+        if not planet:
             return web.Response(status=404, text="Galaxy or Planet not found")
         
         base_variant = planet["deployedVersion"]
@@ -191,14 +191,14 @@ async def handle_optimizer_generate_variant(request):
         if len(planet["traceHistory"]) > 15:
             planet["traceHistory"].pop()
             
-        await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
+        await broadcast_message({"type": "update", "payload": {"galaxies": copy.deepcopy(galaxies)}})
         return web.json_response({"status": "success", "variant": new_variant})
 
     except Exception as e:
         print(f"Generate variant error: {e}")
         return web.Response(status=500, text="Internal Server Error")
 
-async def handle_optimizer_deploy_variant(request):
+async def handle_optimizer_deploy_variant(request: web.Request) -> web.Response:
     """Deploys a specific variant from the trace history."""
     try:
         data = await request.json()
@@ -207,8 +207,10 @@ async def handle_optimizer_deploy_variant(request):
         variant_id = data.get("variant_id")
 
         galaxy = galaxies.get(galaxy_id)
+        if not galaxy:
+            return web.Response(status=404, text="Galaxy or Planet not found")
         planet = next((p for p in galaxy.get('planets', []) if p['id'] == planet_id), None)
-        if not galaxy or not planet:
+        if not planet:
             return web.Response(status=404, text="Galaxy or Planet not found")
 
         variant_to_deploy = next((v for v in planet.get('traceHistory', []) if v['id'] == variant_id), None)
@@ -221,14 +223,14 @@ async def handle_optimizer_deploy_variant(request):
         galaxy["comets"] = [c for c in galaxy.get("comets", []) if c.get("targetPlanetId") != planet_id]
         _update_galaxy_status_based_on_planets(galaxy)
 
-        await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
+        await broadcast_message({"type": "update", "payload": {"galaxies": copy.deepcopy(galaxies)}})
         return web.json_response({"status": "success", "deployed_variant_id": variant_id})
 
     except Exception as e:
         print(f"Deploy variant error: {e}")
         return web.Response(status=500, text="Internal Server Error")
 
-async def handle_optimizer_stop(request):
+async def handle_optimizer_stop(request: web.Request) -> web.Response:
     """Stops a continuous optimization run for a given planet."""
     try:
         data = await request.json()
@@ -246,324 +248,333 @@ async def handle_optimizer_stop(request):
         print(f"Optimizer stop error: {e}")
         return web.Response(status=500, text="Internal Server Error")
 
-async def handle_delete_agent(request):
+async def handle_delete_agent(request: web.Request) -> web.Response:
     """Deletes an agent (galaxy) from the simulation."""
+    agent_id = request.match_info.get('agent_id')
+    if not agent_id:
+        return web.Response(status=400, text="Bad Request: Missing agent_id")
+
+    if agent_id in galaxies:
+        del galaxies[agent_id]
+        # Persist changes
+        # ... (removed for simplicity)
+        await broadcast_message({"type": "update", "payload": {"galaxies": copy.deepcopy(galaxies)}})
+        return web.Response(status=200, text=f"Agent {agent_id} deleted.")
+    else:
+        return web.Response(status=404, text="Agent not found.")
+
+async def handle_update_position(request: web.Request) -> web.Response:
+    """Updates the 3D position of a galaxy."""
     try:
         agent_id = request.match_info.get('agent_id')
         if not agent_id:
             return web.Response(status=400, text="Bad Request: Missing agent_id")
-
-        if agent_id in galaxies:
-            del galaxies[agent_id]
-            print(f"Agent {agent_id} deleted.")
-            
-            await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
-            return web.json_response({"status": "success", "message": f"Agent {agent_id} deleted."})
-        else:
-            return web.Response(status=404, text=f"Not Found: Agent {agent_id} not found.")
-
-    except Exception as e:
-        print(f"Delete agent error: {e}")
-        return web.Response(status=500, text="Internal Server Error")
-
-async def handle_update_position(request):
-    """Updates the position of an agent (galaxy)."""
-    try:
-        agent_id = request.match_info.get('agent_id')
-        if not agent_id:
-            return web.Response(status=400, text="Bad Request: Missing agent_id")
-
+        
         data = await request.json()
         new_position = data.get('position')
         
-        if not new_position or len(new_position) != 3:
-            return web.Response(status=400, text="Bad Request: Invalid position format")
-
         if agent_id in galaxies:
             galaxies[agent_id]['position'] = new_position
-            print(f"Agent {agent_id} position updated to {new_position}")
-            
-            await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
-            return web.json_response({"status": "success", "position": new_position})
+            # No broadcast needed, client handles optimistic update
+            return web.Response(status=200)
         else:
-            return web.Response(status=404, text=f"Not Found: Agent {agent_id} not found.")
-
+            return web.Response(status=404, text="Agent not found")
     except Exception as e:
         print(f"Update position error: {e}")
         return web.Response(status=500, text="Internal Server Error")
 
-async def handle_update_metric_mapping(request):
-    """Updates the metric mapping for an agent (galaxy)."""
+async def handle_update_metric_mapping(request: web.Request) -> web.Response:
+    """Updates the metric mapping for a galaxy."""
     try:
         agent_id = request.match_info.get('agent_id')
         if not agent_id:
             return web.Response(status=400, text="Bad Request: Missing agent_id")
 
         data = await request.json()
-        metric_mapping = data.get('metricMapping')
-        
-        if not metric_mapping:
-            return web.Response(status=400, text="Bad Request: Missing metricMapping")
+        new_mapping = data.get('metricMapping')
 
         if agent_id in galaxies:
             if 'config' not in galaxies[agent_id]:
                 galaxies[agent_id]['config'] = {}
-            galaxies[agent_id]['config']['metricMapping'] = metric_mapping
-            print(f"Agent {agent_id} metric mapping updated: {metric_mapping}")
-            
-            await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
-            return web.json_response({"status": "success", "metricMapping": metric_mapping})
+            galaxies[agent_id]['config']['metricMapping'] = new_mapping
+            await broadcast_message({"type": "update", "payload": {"galaxies": copy.deepcopy(galaxies)}})
+            return web.Response(status=200)
         else:
-            return web.Response(status=404, text=f"Not Found: Agent {agent_id} not found.")
-
+            return web.Response(status=404, text="Agent not found")
     except Exception as e:
-        print(f"Update metric mapping error: {e}")
+        print(f"Error updating metric mapping: {e}")
         return web.Response(status=500, text="Internal Server Error")
 
-# --- Mock Opik SDK Functions ---
-def evaluate_with_opik_judges(base_score, metrics_to_evaluate):
-    """Simulates opik's evaluation suite for a prompt variant."""
-    score_multiplier = random.uniform(0.9, 1.1)
-    new_score = min(round(base_score * score_multiplier, 2), 0.99)
+
+async def handle_toggle_planet_status(request: web.Request) -> web.Response:
+    """Toggles a planet's status between 'active' and 'inactive'."""
+    try:
+        agent_id = request.match_info.get('agent_id')
+        planet_id = request.match_info.get('planet_id')
+        
+        if not agent_id or not planet_id:
+            return web.Response(status=400, text="Bad Request: Missing agent or planet ID")
+
+        data = await request.json()
+        new_status = data.get('status')
+
+        if new_status not in ['active', 'inactive']:
+            return web.Response(status=400, text="Bad Request: Invalid status")
+
+        galaxy = galaxies.get(agent_id)
+        if not galaxy:
+            return web.Response(status=404, text="Agent not found")
+        
+        planet = next((p for p in galaxy.get('planets', []) if p['id'] == planet_id), None)
+        if not planet:
+            return web.Response(status=404, text="Planet not found")
+
+        planet['status'] = new_status
+        await broadcast_message({"type": "update", "payload": {"galaxies": copy.deepcopy(galaxies)}})
+        return web.json_response({"status": "success"})
+    except Exception as e:
+        print(f"Error toggling planet status: {e}")
+        return web.Response(status=500, text="Internal Server Error")
+
+
+def evaluate_with_opik_judges(base_score: float, metrics_to_evaluate: list) -> Dict[str, Any]:
+    """
+    Simulates calling Opik judges for a more comprehensive evaluation.
+    This is a placeholder for a real-world, complex evaluation system.
+    """
+    score_multiplier = random.uniform(0.8, 1.2) # Simulate variability
+    new_score = max(0, min(1, base_score * score_multiplier))
     
     return {
         "score": new_score,
-        "factuality": round(random.uniform(0.85, 0.99), 2),
-        "hallucination": round(random.uniform(0.01, 0.15), 2),
-        "speed": random.randint(100, 500)
+        "factuality": random.choice(["Meets Expectations", "Exceeds Expectations", "Needs Improvement"]),
+        "hallucination": "Detected" if random.random() < 0.1 else "Not Detected",
+        "speed": int(random.uniform(50, 500)),
     }
 
-def generate_new_variant(base_text):
-    """Simulates Opik's few-shot prompt tuning."""
+
+def generate_new_variant(base_text: str) -> Dict[str, Any]:
+    """Generates a new prompt variant by applying a random modification."""
     modifier = random.choice(PROMPT_MODIFIERS)
-    new_text = f"{base_text} Additional instruction: {modifier}"
-    new_id = f"v{random.randint(10000, 99999)}"
-    return {"id": new_id, "text": new_text, "timestamp": datetime.now().isoformat()}
+    new_text = f"{base_text} [{modifier}]"
+    
+    return {
+        "id": f"var_{int(time.time() * 1000)}_{random.randint(1000, 9999)}",
+        "text": new_text,
+        "evaluation": {},
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "isDeployed": False,
+    }
 
-# --- Simulation Logic ---
+def generate_new_planet(galaxy_id: str) -> Dict[str, Any]:
+    """Generates a new planet with default values."""
+    planet_id = f"p_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+    return {
+        "id": planet_id,
+        "name": f"Planet-{random.choice(['Alpha', 'Beta', 'Gamma', 'Delta'])}-{random.randint(100, 999)}",
+        "status": "active",
+        "orbitRadius": random.uniform(10, 40),
+        "deployedVersion": {
+            "id": f"v_{int(time.time() * 1000)}",
+            "text": "Initial default prompt.",
+            "evaluation": {
+                "score": random.uniform(0.5, 0.8),
+                "factuality": "N/A",
+                "hallucination": "N/A",
+                "speed": 0,
+            },
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "isDeployed": True,
+        },
+        "traceHistory": [],
+    }
 
-async def run_continuous_optimization(galaxy_id, planet_id, optimizer, score_threshold):
+async def run_continuous_optimization(galaxy_id: str, planet_id: str, optimizer: str, score_threshold: float):
     """
-    Runs a continuous A/B test simulation for a planet, updating its trace history.
+    A background task that continuously generates and evaluates variants
+    for a given planet until it's cancelled or a score threshold is met.
     """
-    print(f"[{planet_id}] Starting continuous optimization task...")
     try:
         while True:
-            await asyncio.sleep(random.uniform(1.5, 3.0)) 
-
             galaxy = galaxies.get(galaxy_id)
             if not galaxy:
-                print(f"[{planet_id}] Galaxy {galaxy_id} not found. Stopping task.")
+                print(f"Optimization ended: Galaxy {galaxy_id} not found.")
                 break
-            
+                
             planet = next((p for p in galaxy.get('planets', []) if p['id'] == planet_id), None)
             if not planet:
-                print(f"[{planet_id}] Planet not found. Stopping task.")
+                print(f"Optimization ended: Planet {planet_id} not found.")
                 break
+            
+            base_variant = planet["deployedVersion"]
+            metrics = galaxy.get("config", {}).get("opikMetrics", [])
+            
+            new_variant = generate_new_variant(base_variant["text"])
+            new_variant["evaluation"] = evaluate_with_opik_judges(base_variant["evaluation"]["score"], metrics)
 
-            # Generate and evaluate a new variant
-            base_variant = planet.get("deployedVersion", {})
-            base_prompt_text = base_variant.get("text", "Default prompt text.")
-            base_score = base_variant.get("evaluation", {}).get("score", 0.5)
-            metrics_to_evaluate = galaxy.get("config", {}).get("opikMetrics", [])
+            # Add to the start of the history
+            planet["traceHistory"].insert(0, new_variant)
+            if len(planet["traceHistory"]) > 15:
+                planet["traceHistory"].pop()
 
-            new_variant = generate_new_variant(base_prompt_text) # Optimizer not used in fake generation yet
-            new_variant["evaluation"] = evaluate_with_opik_judges(base_score, metrics_to_evaluate)
-            
-            # Add to trace history and keep it sorted and trimmed
-            trace_history = planet.get("traceHistory", [])
-            trace_history.append(new_variant)
-            trace_history.sort(key=lambda v: v.get("evaluation", {}).get("score", 0), reverse=True)
-            planet["traceHistory"] = trace_history[:10] # Keep only top 10
-            
-            # Broadcast the entire state
-            await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
-            
-            # Check for success condition
+            # Broadcast update with the new trace entry
+            await broadcast_message({
+                "type": "update",
+                "payload": {
+                    "galaxies": copy.deepcopy(galaxies),
+                    "optimizing_planets": list(active_optimizations.keys())
+                }
+            })
+
+            # Check for score threshold
             if new_variant["evaluation"]["score"] >= score_threshold:
-                print(f"[{planet_id}] Score threshold of {score_threshold} reached. Stopping optimization.")
-                break # Exit the loop, cleanup will happen in finally
+                print(f"Score threshold {score_threshold} reached for planet {planet_id}. Stopping optimization.")
+                break # Exit the loop, which will end the task
+
+            # Wait a bit before the next iteration
+            await asyncio.sleep(random.uniform(3, 7))
 
     except asyncio.CancelledError:
-        print(f"[{planet_id}] Optimization task was cancelled.")
-    except Exception as e:
-        print(f"[{planet_id}] An error occurred during optimization: {e}")
-        traceback.print_exc()
+        print(f"Optimization for {planet_id} was cancelled.")
+        
     finally:
-        print(f"[{planet_id}] Cleaning up optimization task.")
+        # This block executes on cancellation or completion
+        print(f"Ending optimization for {planet_id}.")
         if planet_id in active_optimizations:
             del active_optimizations[planet_id]
         
-        # Update galaxy status if no other planets in it are optimizing
+        # Update the galaxy status and broadcast the final state
         galaxy = galaxies.get(galaxy_id)
         if galaxy:
-            is_any_other_planet_optimizing = any(p['id'] in active_optimizations for p in galaxy.get('planets', []))
-            if not is_any_other_planet_optimizing:
-                galaxy["status"] = "stable"
-        
-        # Broadcast final state
-        await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
+            _update_galaxy_status_based_on_planets(galaxy)
+            await broadcast_message({
+                "type": "update",
+                "payload": {
+                    "galaxies": copy.deepcopy(galaxies),
+                    "optimizing_planets": list(active_optimizations.keys())
+                }
+            })
+
 
 async def telemetry_ingestion_loop():
-    """
-    Periodically simulates fetching telemetry from onboarded agents,
-    """
+    """Simulates receiving periodic telemetry data for all agents."""
     while True:
-        await asyncio.sleep(2)  # Update every 2 seconds
-        if galaxies and random.random() < 0.7:
-            try:
-                galaxy_id = random.choice(list(galaxies.keys()))
-                target_galaxy = galaxies[galaxy_id]
-                if target_galaxy.get("planets"):
-                    planet_id = random.choice(range(len(target_galaxy["planets"])))
-                    target_planet = target_galaxy["planets"][planet_id]
-                    current_score = target_planet["deployedVersion"]["evaluation"]["score"]
-                    new_score = current_score + random.uniform(-0.05, 0.05)
-                    new_score = max(0.1, min(0.99, new_score))
-                    target_planet["deployedVersion"]["evaluation"]["score"] = new_score
+        try:
+            # Wait for a random interval before the next telemetry push
+            await asyncio.sleep(random.uniform(15, 30))
+            
+            # This lock prevents race conditions if multiple background tasks modify the state
+            async with simulation_lock:
+                print("Simulating telemetry data ingestion...")
+                
+                for galaxy in galaxies.values():
+                    if not galaxy.get("planets"):
+                        # If no planets, maybe create one
+                        if random.random() < 0.2:
+                            new_planet = generate_new_planet(galaxy["id"])
+                            galaxy["planets"].append(new_planet)
+                            print(f"New planet '{new_planet['name']}' discovered in {galaxy['name']}.")
 
-                    if new_score > current_score:
-                        target_planet["deployedVersion"] = target_planet["traceHistory"][0]
-                        print(f"New version deployed for {target_planet['name']} with score {new_score:.2f}")
+                    for planet in galaxy.get("planets", []):
+                        # Randomly degrade or improve the score
+                        if random.random() < 0.3:
+                            score_change = random.uniform(-0.15, 0.08)
+                            current_score = planet["deployedVersion"]["evaluation"].get("score", 0.7)
+                            new_score = max(0, min(1, current_score + score_change))
+                            planet["deployedVersion"]["evaluation"]["score"] = new_score
+                            print(f"Score for planet '{planet['name']}' in {galaxy['name']} changed to {new_score:.2f}")
 
-            except (KeyError, IndexError) as e:
-                print(f"Skipping telemetry ingestion tick due to data structure error: {e}")
+                # After all updates, broadcast the new state
+                await broadcast_message({
+                    "type": "update",
+                    "payload": {
+                        "galaxies": copy.deepcopy(galaxies),
+                        "optimizing_planets": list(active_optimizations.keys())
+                    }
+                })
 
-        # Comment out the broadcast to prevent overriding dragged positions
-        # await broadcast_state()
+        except Exception as e:
+            print(f"Error in telemetry loop: {e}")
+            traceback.print_exc()
 
-async def broadcast_state():
-    """Broadcasts the current galaxy state to all connected clients."""
-    if clients:
-        # Each client gets a slightly randomized version of the state
-        tasks = []
-        for client in clients:
-            # Simulate comets or other dynamic elements
-            galaxies_with_comets = copy.deepcopy(galaxies)
-            for galaxy_id, galaxy_data in galaxies_with_comets.items():
-                if galaxy_data['status'] == 'optimizing' and random.random() < 0.2:
-                    if 'comets' not in galaxy_data:
-                        galaxy_data['comets'] = []
-                    
-                    start_pos = [random.uniform(-50, 50), random.uniform(-10, 10), random.uniform(-50, 50)]
-                    end_pos = [random.uniform(-50, 50), random.uniform(-10, 10), random.uniform(-50, 50)]
-                    
-                    galaxy_data['comets'].append({
-                        "id": f"comet-{int(time.time()*1000)}",
-                        "from": start_pos,
-                        "to": end_pos,
-                        "speed": random.uniform(0.5, 2.0)
-                    })
 
-            message = json.dumps({
-                "type": "update",
-                "galaxies": galaxies_with_comets
-            })
-            tasks.append(client.send(message))
-        await asyncio.gather(*tasks)
-
-async def handle_telemetry(request):
+async def handle_telemetry(request: web.Request) -> web.Response:
     """
-    Handles telemetry data ingestion from agents.
-    This is the integrated version of the telemetry endpoint.
+    Handles incoming telemetry data from agents.
+    This would be the primary way the simulation state is updated in a real system.
     """
     try:
         data = await request.json()
         agent_id = data.get("agent_id")
-        payload = data.get("payload")
-
-        if not agent_id or not payload:
-            print(f"TELEMETRY VALIDATION FAILED: Missing agent_id or payload. Data: {data}")
-            return web.Response(status=400, text="Bad Request: Missing agent_id or payload")
         
-        if agent_id not in galaxies:
-            print(f"TELEMETRY WARNING: Received data for unknown agent '{agent_id}'")
-            return web.Response(status=404, text=f"Not Found: Agent {agent_id} is not onboarded.")
+        galaxy = galaxies.get(agent_id)
+        if not galaxy:
+            return web.Response(status=404, text=f"Agent '{agent_id}' not found.")
 
-        galaxy = galaxies[agent_id]
-        print(f"TELEMETRY RECEIVED for Agent '{galaxy['name']}': {json.dumps(payload, indent=2)}")
+        # This lock is crucial to prevent multiple telemetry updates from interfering
+        async with simulation_lock:
+            # Update planets based on telemetry
+            telemetry_planets = data.get("planets", [])
+            existing_planets = {p["id"]: p for p in galaxy.get("planets", [])}
 
-        # --- Create a default planet if this is the first telemetry for the agent ---
-        if not galaxy.get("planets"):
-            galaxy["planets"] = [{
-                "id": f"{agent_id}-p1",
-                "name": "Primary Prompt",
-                "status": "deployed",
-                "deployedVersion": {
-                    "id": "v1", "text": "Initial prompt from live telemetry.",
-                    "evaluation": {"score": 0.5}, "timestamp": datetime.now().isoformat()
-                },
-                "traceHistory": []
-            }]
-            galaxy["status"] = "active"
-
-        # --- Update the planet's state from the payload ---
-        planet = galaxy["planets"][0]
-        if "score" in payload:
-            planet["deployedVersion"]["evaluation"]["score"] = payload["score"]
-        
-        galaxy['status_message'] = f"Latency: {payload.get('latency_ms', 'N/A')}ms | Errors: {payload.get('error_count', 'N/A')}"
-        
-        # Broadcast the update to all clients
-        await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
-        
-        return web.Response(status=200, text="Telemetry received successfully.")
-
-    except json.JSONDecodeError:
-        return web.Response(status=400, text="Bad Request: Invalid JSON format.")
-    except Exception as e:
-        print(f"TELEMETRY ERROR: {e}")
-        traceback.print_exc()
-        return web.Response(status=500, text="Internal Server Error processing telemetry.")
-
-# --- WebSocket Handling ---
-async def broadcast_message(message):
-    """Broadcasts a message to all connected clients."""
-    if clients:
-        # Always include the list of active optimizations as the source of truth
-        message['optimizing_planets'] = list(active_optimizations.keys())
-        message_str = json.dumps(message)
-        # Use asyncio.gather to correctly handle concurrent sending
-        await asyncio.gather(*[client.send(message_str) for client in clients])
-
-async def client_handler(websocket):
-    """Handles WebSocket client connections."""
-    clients.add(websocket)
-    print(f"Client connected. Total clients: {len(clients)}")
-    
-    try:
-        # Send initial state immediately, including the list of any optimizations already running
-        await websocket.send(json.dumps({
-            "type": "update", 
-            "galaxies": galaxies,
-            "optimizing_planets": list(active_optimizations.keys())
-        }))
-
-        async for message in websocket:
-            # This part is intentionally left blank for this simulation
-            pass
+            for tel_planet in telemetry_planets:
+                planet_id = tel_planet["id"]
+                if planet_id in existing_planets:
+                    # Update existing planet's deployed version
+                    existing_planet = existing_planets[planet_id]
+                    existing_planet["name"] = tel_planet.get("name", existing_planet["name"])
+                    
+                    # Update deployed version if telemetry contains it
+                    if "deployedVersion" in tel_planet:
+                        existing_planet["deployedVersion"] = tel_planet["deployedVersion"]
+                else:
+                    # Onboard a new planet
+                    new_planet = {
+                        "id": planet_id,
+                        "name": tel_planet.get("name", "Unnamed Planet"),
+                        "status": "active",
+                        "orbitRadius": random.uniform(10, 40),
+                        "deployedVersion": tel_planet.get("deployedVersion", {}),
+                        "traceHistory": []
+                    }
+                    galaxy.setdefault("planets", []).append(new_planet)
             
-    except websockets.exceptions.ConnectionClosed:
-        print("Client connection closed.")
-    finally:
-        clients.remove(websocket)
-        print(f"Client disconnected. Total clients: {len(clients)}")
+            _update_galaxy_status_based_on_planets(galaxy)
+            
+            # Broadcast the changes to all connected clients
+            await broadcast_message({
+                "type": "update",
+                "payload": {
+                    "galaxies": {agent_id: copy.deepcopy(galaxy)},
+                    "optimizing_planets": list(active_optimizations.keys())
+                }
+            })
 
-# --- Main Entry Point ---
+        return web.Response(status=200, text="Telemetry received.")
+        
+    except Exception as e:
+        print(f"Telemetry error: {e}")
+        traceback.print_exc()
+        return web.Response(status=500, text="Internal Server Error")
+
+
+async def broadcast_message(message: Dict[str, Any]):
+    """Sends a JSON message to all connected clients."""
+    if clients:
+        # Use asyncio.gather to send messages concurrently, handling potential errors
+        tasks = [client.send_json(message) for client in clients]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for result in results:
+            if isinstance(result, Exception):
+                print(f"Error broadcasting message: {result}")
+
 async def main():
-    """Starts the WebSocket and HTTP servers."""
-    # --- HTTP Server Setup ---
+    """Sets up the web server and starts the simulation loops."""
+    # --- Background tasks ---
+    asyncio.create_task(telemetry_ingestion_loop())
+
+    # --- Web server setup ---
     app = web.Application()
-    app.router.add_get("/api/texture", get_texture)
-    app.router.add_post("/api/onboard", handle_onboard)
-    app.router.add_post("/api/telemetry", handle_telemetry)
-    app.router.add_post("/api/optimizer/start", handle_optimizer_start)
-    app.router.add_post("/api/optimizer/generate_variant", handle_optimizer_generate_variant)
-    app.router.add_post("/api/optimizer/deploy_variant", handle_optimizer_deploy_variant)
-    app.router.add_post("/api/optimizer/stop", handle_optimizer_stop)
-    app.router.add_delete("/api/agent/{agent_id}", handle_delete_agent)
-    app.router.add_put("/api/agent/{agent_id}/position", handle_update_position)
-    app.router.add_put("/api/agent/{agent_id}/metric_mapping", handle_update_metric_mapping)
     
     # Configure CORS
     cors = aiohttp_cors.setup(app, defaults={
@@ -571,28 +582,95 @@ async def main():
             allow_credentials=True,
             expose_headers="*",
             allow_headers="*",
-            allow_methods="*",
+            allow_methods="*", # Allow all methods including DELETE
         )
     })
+
+    # --- HTTP Routes ---
+    app.router.add_get('/api/texture', get_texture)
+    app.router.add_post('/api/onboard', handle_onboard)
+    app.router.add_post('/api/optimizer/start', handle_optimizer_start)
+    app.router.add_post('/api/optimizer/stop', handle_optimizer_stop)
+    app.router.add_post('/api/optimizer/variant/generate', handle_optimizer_generate_variant)
+    app.router.add_post('/api/optimizer/variant/deploy', handle_optimizer_deploy_variant)
+    app.router.add_post('/api/telemetry', handle_telemetry)
+    app.router.add_delete('/api/agent/{agent_id}', handle_delete_agent)
+    app.router.add_put('/api/agent/{agent_id}/position', handle_update_position)
+    app.router.add_put('/api/agent/{agent_id}/config/metrics', handle_update_metric_mapping)
+    app.router.add_put('/api/agent/{agent_id}/planet/{planet_id}/status', handle_toggle_planet_status)
+
+    # Apply CORS to all routes
     for route in list(app.router.routes()):
         cors.add(route)
+
+    # --- WebSocket Server ---
+    async def websocket_handler_wrapper(request):
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
         
-    http_runner = web.AppRunner(app)
-    await http_runner.setup()
-    http_site = web.TCPSite(http_runner, '0.0.0.0', 8080)
+        clients.add(ws) 
+        try:
+            await ws.send_json({
+                "type": "update",
+                "payload": {
+                    "galaxies": copy.deepcopy(galaxies),
+                    "optimizing_planets": list(active_optimizations.keys())
+                }
+            })
+
+            async for msg in ws:
+                if msg.type == web.WSMsgType.TEXT:
+                    message = json.loads(msg.data)
+                    if message['type'] == 'deploy_variant':
+                        payload = message.get('payload', {})
+                        galaxy_id = payload.get('galaxyId')
+                        planet_id = payload.get('planetId')
+                        variant = payload.get('variant')
+
+                        if all([galaxy_id, planet_id, variant]):
+                            galaxy = galaxies.get(galaxy_id)
+                            if not galaxy:
+                                continue
+                            planet = next((p for p in galaxy.get('planets', []) if p['id'] == planet_id), None)
+
+                            if planet:
+                                old_deployed = planet.get("deployedVersion")
+                                if old_deployed:
+                                    old_deployed_copy = copy.deepcopy(old_deployed)
+                                    old_deployed_copy['isDeployed'] = False
+                                    if not any(t['id'] == old_deployed_copy['id'] for t in planet.get('traceHistory', [])):
+                                        planet.setdefault('traceHistory', []).insert(0, old_deployed_copy)
+                                
+                                new_deployed = copy.deepcopy(variant)
+                                new_deployed['isDeployed'] = True
+                                planet['deployedVersion'] = new_deployed
+                                planet['traceHistory'] = [t for t in planet.get('traceHistory', []) if t['id'] != new_deployed['id']]
+                                
+                                await broadcast_message({
+                                    "type": "update",
+                                    "payload": {"galaxies": copy.deepcopy(galaxies), "optimizing_planets": list(active_optimizations.keys())}
+                                })
+                elif msg.type == web.WSMsgType.ERROR:
+                    print(f'WebSocket connection closed with exception {ws.exception()}')
+        
+        finally:
+            if ws in clients:
+                clients.remove(ws)
+        
+        return ws
+
+
+    app.router.add_get('/ws', websocket_handler_wrapper)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, 'localhost', 8080)
     
-    # --- WebSocket Server Setup ---
-    websocket_server = await websockets.serve(client_handler, "0.0.0.0", 8765)
+    print("🚀 GalactiCode MCP Server is running on http://localhost:8080")
+    print("📡 WebSocket endpoint is ws://localhost:8080/ws")
+    await site.start()
 
-    print("AI Cockpit MCP Server started:")
-    print("  - WebSocket on ws://0.0.0.0:8765")
-    print("  - HTTP API on http://0.0.0.0:8080")
-
-    # ✅ Keeps both servers running
-    await asyncio.gather(
-        http_site.start(),
-        websocket_server.wait_closed()
-    )
+    await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
