@@ -34,6 +34,8 @@ def load_initial_state():
 # The global state of the universe
 galaxies = load_initial_state()
 clients = set()
+# In-memory store for active optimization tasks
+active_optimizations = {} # {planet_id: asyncio.Task}
 
 # --- Image Proxy Logic ---
 async def get_texture(request):
@@ -132,36 +134,39 @@ def _update_galaxy_status_based_on_planets(galaxy):
 # --- Frontend-driven Optimizer Endpoints ---
 
 async def handle_optimizer_start(request):
-    """Starts an optimization run by creating a 'comet'."""
+    """
+    Starts a continuous optimization background task for a given planet.
+    """
     try:
         data = await request.json()
         galaxy_id = data.get("galaxy_id")
         planet_id = data.get("planet_id")
+        optimizer = data.get("optimizer", "Few-shot Bayesian")
+        score_threshold = data.get("score_threshold", 0.95)
+
+        if planet_id in active_optimizations:
+            return web.json_response({"status": "already_running"}, status=409)
 
         galaxy = galaxies.get(galaxy_id)
-        if not galaxy or not any(p['id'] == planet_id for p in galaxy.get('planets', [])):
+        planet = next((p for p in galaxy.get('planets', []) if p['id'] == planet_id), None)
+        if not galaxy or not planet:
             return web.Response(status=404, text="Galaxy or Planet not found")
 
-        comet_id = f"comet-{int(time.time()*1000)}"
-        new_comet = {
-            "id": comet_id,
-            "targetPlanetId": planet_id,
-            "progress": 0,
-            # Visual properties for the frontend
-            "position": [galaxy['position'][0] + random.uniform(-30, 30), random.uniform(-5, 5), galaxy['position'][2] + random.uniform(-30, 30)],
-            "trajectory": [random.uniform(-0.5, 0.5), random.uniform(-0.1, 0.1), random.uniform(-0.5, 0.5)]
-        }
+        # Start the background task
+        task = asyncio.create_task(
+            run_continuous_optimization(galaxy_id, planet_id, optimizer, score_threshold)
+        )
+        active_optimizations[planet_id] = task
 
-        if "comets" not in galaxy:
-            galaxy["comets"] = []
-        galaxy["comets"].append(new_comet)
+        # Update galaxy status and broadcast
         galaxy["status"] = "optimizing"
-        
         await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
-        return web.json_response({"status": "success", "comet_id": comet_id})
+        
+        return web.json_response({"status": "success", "message": f"Optimization started for planet {planet_id}."})
 
     except Exception as e:
         print(f"Optimizer start error: {e}")
+        traceback.print_exc()
         return web.Response(status=500, text="Internal Server Error")
 
 async def handle_optimizer_generate_variant(request):
@@ -224,22 +229,18 @@ async def handle_optimizer_deploy_variant(request):
         return web.Response(status=500, text="Internal Server Error")
 
 async def handle_optimizer_stop(request):
-    """Stops an optimization run for a given planet."""
+    """Stops a continuous optimization run for a given planet."""
     try:
         data = await request.json()
-        galaxy_id = data.get("galaxy_id")
         planet_id = data.get("planet_id")
 
-        galaxy = galaxies.get(galaxy_id)
-        if not galaxy:
-            return web.Response(status=404, text="Galaxy not found")
-
-        # Remove comets targeting this planet
-        galaxy["comets"] = [c for c in galaxy.get("comets", []) if c.get("targetPlanetId") != planet_id]
-        _update_galaxy_status_based_on_planets(galaxy)
-        
-        await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
-        return web.json_response({"status": "success", "message": f"Optimization stopped for planet {planet_id}."})
+        task = active_optimizations.get(planet_id)
+        if task:
+            task.cancel()
+            # The task's finally block will handle cleanup
+            return web.json_response({"status": "success", "message": f"Optimization stopping for planet {planet_id}."})
+        else:
+            return web.Response(status=404, text="No active optimization found for this planet.")
 
     except Exception as e:
         print(f"Optimizer stop error: {e}")
@@ -340,6 +341,69 @@ def generate_new_variant(base_text):
     return {"id": new_id, "text": new_text, "timestamp": datetime.now().isoformat()}
 
 # --- Simulation Logic ---
+
+async def run_continuous_optimization(galaxy_id, planet_id, optimizer, score_threshold):
+    """
+    Runs a continuous A/B test simulation for a planet, updating its trace history.
+    """
+    print(f"[{planet_id}] Starting continuous optimization task...")
+    try:
+        while True:
+            await asyncio.sleep(random.uniform(1.5, 3.0)) 
+
+            galaxy = galaxies.get(galaxy_id)
+            if not galaxy:
+                print(f"[{planet_id}] Galaxy {galaxy_id} not found. Stopping task.")
+                break
+            
+            planet = next((p for p in galaxy.get('planets', []) if p['id'] == planet_id), None)
+            if not planet:
+                print(f"[{planet_id}] Planet not found. Stopping task.")
+                break
+
+            # Generate and evaluate a new variant
+            base_variant = planet.get("deployedVersion", {})
+            base_prompt_text = base_variant.get("text", "Default prompt text.")
+            base_score = base_variant.get("evaluation", {}).get("score", 0.5)
+            metrics_to_evaluate = galaxy.get("config", {}).get("opikMetrics", [])
+
+            new_variant = generate_new_variant(base_prompt_text) # Optimizer not used in fake generation yet
+            new_variant["evaluation"] = evaluate_with_opik_judges(base_score, metrics_to_evaluate)
+            
+            # Add to trace history and keep it sorted and trimmed
+            trace_history = planet.get("traceHistory", [])
+            trace_history.append(new_variant)
+            trace_history.sort(key=lambda v: v.get("evaluation", {}).get("score", 0), reverse=True)
+            planet["traceHistory"] = trace_history[:10] # Keep only top 10
+            
+            # Broadcast the entire state
+            await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
+            
+            # Check for success condition
+            if new_variant["evaluation"]["score"] >= score_threshold:
+                print(f"[{planet_id}] Score threshold of {score_threshold} reached. Stopping optimization.")
+                break # Exit the loop, cleanup will happen in finally
+
+    except asyncio.CancelledError:
+        print(f"[{planet_id}] Optimization task was cancelled.")
+    except Exception as e:
+        print(f"[{planet_id}] An error occurred during optimization: {e}")
+        traceback.print_exc()
+    finally:
+        print(f"[{planet_id}] Cleaning up optimization task.")
+        if planet_id in active_optimizations:
+            del active_optimizations[planet_id]
+        
+        # Update galaxy status if no other planets in it are optimizing
+        galaxy = galaxies.get(galaxy_id)
+        if galaxy:
+            is_any_other_planet_optimizing = any(p['id'] in active_optimizations for p in galaxy.get('planets', []))
+            if not is_any_other_planet_optimizing:
+                galaxy["status"] = "stable"
+        
+        # Broadcast final state
+        await broadcast_message({"type": "update", "galaxies": copy.deepcopy(galaxies)})
+
 async def telemetry_ingestion_loop():
     """
     Periodically simulates fetching telemetry from onboarded agents,
@@ -454,10 +518,13 @@ async def handle_telemetry(request):
 
 # --- WebSocket Handling ---
 async def broadcast_message(message):
-    """Sends a message to all connected clients."""
+    """Broadcasts a message to all connected clients."""
     if clients:
-        # Use asyncio.gather to run all send tasks concurrently
-        await asyncio.gather(*[client.send(json.dumps(message)) for client in clients])
+        # Always include the list of active optimizations as the source of truth
+        message['optimizing_planets'] = list(active_optimizations.keys())
+        message_str = json.dumps(message)
+        # Use asyncio.gather to correctly handle concurrent sending
+        await asyncio.gather(*[client.send(message_str) for client in clients])
 
 async def client_handler(websocket):
     """Handles WebSocket client connections."""
@@ -465,8 +532,12 @@ async def client_handler(websocket):
     print(f"Client connected. Total clients: {len(clients)}")
     
     try:
-        # Send initial state immediately
-        await websocket.send(json.dumps({"type": "init", "galaxies": galaxies}))
+        # Send initial state immediately, including the list of any optimizations already running
+        await websocket.send(json.dumps({
+            "type": "update", 
+            "galaxies": galaxies,
+            "optimizing_planets": list(active_optimizations.keys())
+        }))
 
         async for message in websocket:
             # This part is intentionally left blank for this simulation
