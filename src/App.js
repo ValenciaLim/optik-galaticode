@@ -89,7 +89,7 @@ const generatePromptVariant = (basePrompt, optimizer = 'Few-shot Bayesian') => {
 
 // --- 3D Components ---
 
-function OrbitLine({ radius }) {
+function OrbitLine({ radius, isDeployed }) {
     const points = useMemo(() => {
         const p = [];
         const numPoints = 128;
@@ -99,10 +99,10 @@ function OrbitLine({ radius }) {
         }
         return p;
     }, [radius]);
-    return <Line points={points} color="gray" lineWidth={0.7} dashed dashSize={0.4} gapSize={0.2} />;
+    return <Line points={points} color={isDeployed ? "white" : "gray"} lineWidth={isDeployed ? 1 : 0.7} dashed={!isDeployed} dashSize={0.4} gapSize={0.2} />;
 }
 
-function TraceNode({ variant, radius, onSelect, theme = {}, rank, isNewEntry = false, isNewTop = false }) {
+function TraceNode({ variant, radius, onSelect, theme = {}, rank, isNewEntry = false, isNewTop = false, isDeployed = false }) {
     const nodeRef = useRef();
     const materialRef = useRef();
     const [highlightStartTime, setHighlightStartTime] = useState(null);
@@ -144,6 +144,8 @@ function TraceNode({ variant, radius, onSelect, theme = {}, rank, isNewEntry = f
         onSelect(variant);
     };
 
+    const labelText = isDeployed ? `Deployed (#${rank})` : `#${rank}`;
+
     return (
         <group>
         <mesh
@@ -159,7 +161,7 @@ function TraceNode({ variant, radius, onSelect, theme = {}, rank, isNewEntry = f
             }}
                 onClick={handleClick}
         >
-                <sphereGeometry args={[isHovered ? 0.4 : 0.3, 16, 16]} />
+                {isDeployed ? <boxGeometry args={[0.5, 0.5, 0.5]} /> : <sphereGeometry args={[isHovered ? 0.4 : 0.3, 16, 16]} />}
             <meshStandardMaterial
                     ref={materialRef}
                 color={color}
@@ -177,7 +179,7 @@ function TraceNode({ variant, radius, onSelect, theme = {}, rank, isNewEntry = f
                 anchorX="center"
                 anchorY="middle"
             >
-                #{rank}
+                {labelText}
             </Text>
         </group>
     );
@@ -220,17 +222,46 @@ function PlanetTraceNodes({ planet, theme, onSelect, galaxyConfig, view, onAddTr
 
     // Get top traces from traceHistory
     useEffect(() => {
-        if (planet.traceHistory) {
-            const sortedTraces = [...planet.traceHistory]
-                .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0))
-                .slice(0, 10);
+        if (planet.traceHistory && planet.deployedVersion) {
+            let combinedTraces = [...planet.traceHistory];
+            const deployedId = planet.deployedVersion.id;
+
+            // Ensure deployed version is in the list and marked
+            const deployedInHistory = combinedTraces.find(t => t.id === deployedId);
+            if (deployedInHistory) {
+                deployedInHistory.isDeployed = true;
+            } else {
+                combinedTraces.push({ ...planet.deployedVersion, isDeployed: true });
+            }
+
+            const sortedTraces = combinedTraces
+                .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0));
+            
+            // Now, find the top 10 unique traces, but always include the deployed one
+            const uniqueTraces = [];
+            const seenIds = new Set();
+            let deployedIsIncluded = false;
+
+            for (const trace of sortedTraces) {
+                if (!seenIds.has(trace.id)) {
+                    if (uniqueTraces.length < 10) {
+                        uniqueTraces.push(trace);
+                        seenIds.add(trace.id);
+                        if (trace.isDeployed) deployedIsIncluded = true;
+                    } else if (trace.isDeployed && !deployedIsIncluded) {
+                        // if deployed is outside top 10, add it anyway
+                        uniqueTraces.push(trace);
+                        break; // Stop after adding deployed
+                    }
+                }
+            }
 
             const newEntriesSet = new Set();
             const previousIds = new Set(prevTopTracesRef.current.map(t => t.id));
             const previousTopId = prevTopTracesRef.current.length > 0 ? prevTopTracesRef.current[0]?.id : null;
             const currentTopId = sortedTraces.length > 0 ? sortedTraces[0]?.id : null;
             
-            sortedTraces.forEach((trace, index) => {
+            uniqueTraces.forEach((trace, index) => {
                 if (!previousIds.has(trace.id)) {
                     newEntriesSet.add(trace.id);
                     if (index === 0 && currentTopId !== previousTopId) {
@@ -241,13 +272,13 @@ function PlanetTraceNodes({ planet, theme, onSelect, galaxyConfig, view, onAddTr
             });
             
             setNewEntries(newEntriesSet);
-            setTopTraces(sortedTraces);
-            prevTopTracesRef.current = sortedTraces;
+            setTopTraces(uniqueTraces);
+            prevTopTracesRef.current = uniqueTraces;
             
             // Clear new entry highlights after animation
             setTimeout(() => setNewEntries(new Set()), 1000);
         }
-    }, [planet.traceHistory]);
+    }, [planet.traceHistory, planet.deployedVersion]);
 
     // Update trace nodes position to follow the planet
     useFrame(({ clock }) => {
@@ -283,7 +314,7 @@ function PlanetTraceNodes({ planet, theme, onSelect, galaxyConfig, view, onAddTr
                 
                 return (
                     <group key={trace.id}>
-                        <OrbitLine radius={traceOrbitRadius} />
+                        <OrbitLine radius={traceOrbitRadius} isDeployed={trace.isDeployed} />
                         <TraceNode
                             variant={{...trace, rank}}
                             radius={traceOrbitRadius}
@@ -292,6 +323,7 @@ function PlanetTraceNodes({ planet, theme, onSelect, galaxyConfig, view, onAddTr
                             rank={rank}
                             isNewEntry={isNewEntry}
                             isNewTop={isNewTop}
+                            isDeployed={trace.isDeployed}
                         />
                     </group>
                 );
@@ -300,9 +332,10 @@ function PlanetTraceNodes({ planet, theme, onSelect, galaxyConfig, view, onAddTr
     );
 }
 
-function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyConfig, view, onAddTrace }) {
+function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyConfig, view, onAddTrace, optimizingPlanetIds }) {
     const { deployedVersion, status, orbitRadius } = planet;
-    const isDeployed = status === 'deployed';
+    const isDeployed = status === 'active';
+    const isOptimizing = optimizingPlanetIds.has(planet.id);
 
     const planetRef = useRef();
     const materialRef = useRef();
@@ -358,9 +391,15 @@ function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyCon
             planetRef.current.position.set(x, 0, z);
         }
         
-        // Pulse red effect for critical planets
-        if (materialRef.current && isCritical) {
+        // Handle visual effects
+        if (materialRef.current) {
+            if (isOptimizing && !texture) {
+                // Pulse yellow for optimizing default planets
+                materialRef.current.emissiveIntensity = 0.9 + Math.sin(clock.getElapsedTime() * 5) * 0.4;
+            } else if (isCritical) {
+                // Pulse red for critical planets
             materialRef.current.emissiveIntensity = 0.6 + Math.sin(clock.getElapsedTime() * 4) * 0.4;
+            }
         }
     });
 
@@ -403,7 +442,7 @@ function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyCon
                     <meshStandardMaterial
                         ref={materialRef}
                         color={isCritical ? 0xff4444 : planetColor}
-                        emissive={isCritical ? new THREE.Color(0xff4444) : planetColor}
+                        emissive={isOptimizing && !texture ? new THREE.Color(0xffd700) : (isCritical ? new THREE.Color(0xff4444) : planetColor)}
                         emissiveIntensity={isDeployed ? 0.7 : 0}
                         metalness={0}
                         roughness={0}
@@ -425,12 +464,12 @@ function PlanetMesh({ planet, texture, onSelect, onDoubleClick, theme, galaxyCon
     );
 }
 
-function PlanetWithTextureLoader({ planet, textureUrl, onSelect, onDoubleClick, theme, galaxyConfig, view, onAddTrace }) {
+function PlanetWithTextureLoader({ planet, textureUrl, onSelect, onDoubleClick, theme, galaxyConfig, view, onAddTrace, optimizingPlanetIds }) {
     const texture = useLoader(THREE.TextureLoader, textureUrl);
-    return <PlanetMesh planet={planet} texture={texture} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} view={view} onAddTrace={onAddTrace} />;
+    return <PlanetMesh planet={planet} texture={texture} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} view={view} onAddTrace={onAddTrace} optimizingPlanetIds={optimizingPlanetIds} />;
 }
 
-function Planet({ planet, onSelect, onDoubleClick, textureTheme, theme, galaxyConfig, view, onAddTrace }) {
+function Planet({ planet, onSelect, onDoubleClick, textureTheme, theme, galaxyConfig, view, onAddTrace, optimizingPlanetIds }) {
     let textureUrl = null;
     if (textureTheme && textureTheme !== 'default') {
         const theme_generators = {
@@ -441,10 +480,10 @@ function Planet({ planet, onSelect, onDoubleClick, textureTheme, theme, galaxyCo
     }
     
     if (!textureUrl) {
-        return <PlanetMesh planet={planet} texture={null} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} view={view} onAddTrace={onAddTrace} />;
+        return <PlanetMesh planet={planet} texture={null} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} view={view} onAddTrace={onAddTrace} optimizingPlanetIds={optimizingPlanetIds} />;
     }
 
-    return <PlanetWithTextureLoader planet={planet} textureUrl={textureUrl} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} view={view} onAddTrace={onAddTrace} />;
+    return <PlanetWithTextureLoader planet={planet} textureUrl={textureUrl} onSelect={onSelect} onDoubleClick={onDoubleClick} theme={theme} galaxyConfig={galaxyConfig} view={view} onAddTrace={onAddTrace} optimizingPlanetIds={optimizingPlanetIds} />;
 }
 
 function SpaceStation({ color, onDoubleClick, isCritical, status, statusMessage, onHover }) {
@@ -485,7 +524,7 @@ function SpaceStation({ color, onDoubleClick, isCritical, status, statusMessage,
         >
             <mesh onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick(); }}>
                 <icosahedronGeometry args={[2.8, 1]} />
-                <meshStandardMaterial ref={materialRef} color={color} emissive={color} emissiveIntensity={isCritical ? 1.0 : 0.6} metalness={0.8} roughness={0.2} />
+                <meshStandardMaterial ref={materialRef} color={color} emissive={color} emissiveIntensity={isCritical && status !== 'optimizing' ? 1.0 : 0.6} metalness={0.8} roughness={0.2} />
             </mesh>
             <group ref={ringsRef}>
                 <mesh>
@@ -501,7 +540,7 @@ function SpaceStation({ color, onDoubleClick, isCritical, status, statusMessage,
     );
 }
 
-function Galaxy({ galaxy, onSelect, onPlanetSelect, onGalaxyDoubleClick, onPlanetDoubleClick, onStationHover, textureTheme, onGalaxyMove, setOrbitControlsEnabled, view, onAddTrace }) {
+function Galaxy({ galaxy, onSelect, onPlanetSelect, onGalaxyDoubleClick, onPlanetDoubleClick, onStationHover, textureTheme, onGalaxyMove, setOrbitControlsEnabled, view, onAddTrace, optimizingPlanetIds }) {
     const groupRef = useRef();
     const [position, setPosition] = useState(galaxy.position);
     const pointLightRef = useRef();
@@ -516,14 +555,16 @@ function Galaxy({ galaxy, onSelect, onPlanetSelect, onGalaxyDoubleClick, onPlane
     });
 
     const statusColor = useMemo(() => {
+        if (isOptimizing) return new THREE.Color("#ffd700");
         if (!hasPlanets) return new THREE.Color("#aaaaaa");
         if (isCritical || hasCriticalPlanet) return new THREE.Color("#ff4d4d");
-        if (isOptimizing) return new THREE.Color("#ffd700");
         return new THREE.Color("#4dff4d");
-    }, [isCritical, isOptimizing, hasPlanets, hasCriticalPlanet]);
+    }, [isOptimizing, isCritical, hasPlanets, hasCriticalPlanet]);
 
     useFrame(({ clock }) => {
-        if (pointLightRef.current && (isCritical || hasCriticalPlanet)) {
+        if (pointLightRef.current && (isCritical || hasCriticalPlanet) && !isOptimizing) {
+            pointLightRef.current.intensity = 2.5 + Math.sin(clock.getElapsedTime() * 4) * 0.8;
+        } else if (pointLightRef.current) {
             pointLightRef.current.intensity = 2.5 + Math.sin(clock.getElapsedTime() * 4) * 0.8;
         }
     });
@@ -584,7 +625,7 @@ function Galaxy({ galaxy, onSelect, onPlanetSelect, onGalaxyDoubleClick, onPlane
                 const normalizedPositionMetric = positionMetric !== null ? Math.max(0, Math.min(1, positionMetric || 0)) : 0.5;
                 const orbitRadius = positionMetric !== null ? (10 + 30 * (1 - normalizedPositionMetric)) : (p.orbitRadius || 15);
                 
-                return <OrbitLine key={`orbit-${p.id}`} radius={orbitRadius} />;
+                return <OrbitLine key={`orbit-${p.id}`} radius={orbitRadius} isDeployed={p.deployedVersion?.evaluation?.score !== null} />;
             })}
             {galaxy.planets?.map(p => (
                 <Planet 
@@ -597,6 +638,7 @@ function Galaxy({ galaxy, onSelect, onPlanetSelect, onGalaxyDoubleClick, onPlane
                     galaxyConfig={galaxy.config} 
                     view={view}
                     onAddTrace={(newTrace) => onAddTrace(p.id, newTrace)}
+                    optimizingPlanetIds={optimizingPlanetIds}
                 />
             ))}
             <Text
@@ -622,7 +664,9 @@ function PlanetSidebar({
     optimizer, 
     onOptimizerChange,
     scoreThreshold,
-    onScoreThresholdChange
+    onScoreThresholdChange,
+    onToggleStatus,
+    onDeployVariant
 }) {
     const deployedVersion = planet.deployedVersion;
     const evalData = deployedVersion?.evaluation;
@@ -646,6 +690,13 @@ function PlanetSidebar({
             
             <div className="planet-sidebar-content">
                 <h2>{planet.name}</h2>
+                <button
+                    onClick={onToggleStatus}
+                    className={`optimization-btn ${planet.status === 'active' ? 'stop' : ''}`}
+                    style={{marginBottom: '15px', width: '100%'}}
+                >
+                    {planet.status === 'active' ? 'Deactivate Planet' : 'Activate Planet'}
+                </button>
                 
                 <div className="optimization-controls">
                     <strong>Auto-Optimization</strong>
@@ -748,6 +799,13 @@ function PlanetSidebar({
                             <div className="prompt-text">
                                 {selectedTrace.text || 'No text available'}
                             </div>
+                            <button 
+                                onClick={() => onDeployVariant(selectedTrace)}
+                                className="optimization-btn"
+                                style={{marginTop: '10px', width: '100%'}}
+                            >
+                                Deploy this Variant
+                            </button>
                         </div>
                     </div>
                 )}
@@ -759,7 +817,7 @@ function PlanetSidebar({
 
 // --- Camera & Scene Logic ---
 
-function MainScene({ galaxies, onGalaxyDoubleClick, onPlanetDoubleClick, onSelect, orbitControlsRef, onStationHover, textureTheme, onGalaxyMove, setOrbitControlsEnabled, view, onAddTrace }) {
+function MainScene({ galaxies, onGalaxyDoubleClick, onPlanetDoubleClick, onSelect, orbitControlsRef, onStationHover, textureTheme, onGalaxyMove, setOrbitControlsEnabled, view, onAddTrace, optimizingPlanetIds }) {
     console.log('MainScene view:', view);
     console.log('MainScene galaxies:', galaxies);
     
@@ -793,6 +851,7 @@ function MainScene({ galaxies, onGalaxyDoubleClick, onPlanetDoubleClick, onSelec
                         setOrbitControlsEnabled={setOrbitControlsEnabled}
                         view={view}
                         onAddTrace={onAddTrace}
+                        optimizingPlanetIds={optimizingPlanetIds}
                     />
                 ))
             )}
@@ -987,6 +1046,46 @@ function StatsBox({ selectedObject, onDeleteAgent, onClose, onUpdateMetricMappin
         );
     }
 
+    // Handle Planet selection
+    if (selectedObject.type === 'planet') {
+        const { name, deployedVersion } = selectedObject;
+        const evalData = deployedVersion?.evaluation;
+
+        return (
+            <div className="stats-box">
+                <div className="stats-header">
+                    <h3>{name}</h3>
+                    <button onClick={onClose} className="close-btn-stats">×</button>
+                </div>
+                <h4>Deployed Version</h4>
+                <div className="metrics-grid">
+                    <div className="metric-item">
+                        <span className="metric-label">Score</span>
+                        <span className="metric-value">{evalData?.score?.toFixed(3) || 'N/A'}</span>
+                    </div>
+                    <div className="metric-item">
+                        <span className="metric-label">Hallucination</span>
+                        <span className="metric-value">{evalData?.hallucination || 'N/A'}</span>
+                    </div>
+                    <div className="metric-item">
+                        <span className="metric-label">Latency</span>
+                        <span className="metric-value">{evalData?.speed ? `${evalData.speed}ms` : 'N/A'}</span>
+                    </div>
+                    <div className="metric-item">
+                        <span className="metric-label">Factuality</span>
+                        <span className="metric-value">{evalData?.factuality || 'N/A'}</span>
+                    </div>
+                </div>
+                <div className="prompt-text-section">
+                    <h4>Prompt Text</h4>
+                    <div className="prompt-text">
+                        {deployedVersion?.text || 'No prompt text available'}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (selectedObject.isComet) {
         return (
             <div className="stats-box">
@@ -1063,56 +1162,87 @@ function App() {
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [orbitControlsEnabled, setOrbitControlsEnabled] = useState(true);
   const [selectedTrace, setSelectedTrace] = useState(null);
+  const [isPlanetSidebarOpen, setIsPlanetSidebarOpen] = useState(false);
   const [optimizingPlanetIds, setOptimizingPlanetIds] = useState(new Set());
   const [optimizerSettings, setOptimizerSettings] = useState({});
   const [thresholdSettings, setThresholdSettings] = useState({});
+  const ws = useRef(null);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8765");
+    const connect = () => {
+      const wsInstance = new WebSocket("ws://localhost:8080/ws");
+      ws.current = wsInstance;
 
-    ws.onopen = () => setStatusMessage("MCP connection established. Systems online.");
-    ws.onclose = () => setStatusMessage("MCP connection lost. Attempting to reconnect...");
-    ws.onerror = () => setStatusMessage("MCP connection error.");
+      wsInstance.onopen = () => setStatusMessage("MCP connection established. Systems online.");
+      wsInstance.onclose = () => {
+          setStatusMessage("MCP connection lost. Attempting to reconnect in 3 seconds...");
+          setTimeout(connect, 3000);
+      };
+      wsInstance.onerror = () => setStatusMessage("MCP connection error.");
 
-    ws.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        if (message.type === 'error') {
-            console.error("MCP Error:", message.message);
-            setStatusMessage(`Error: ${message.message}`);
-        } else if (message.type === 'update') {
-            const data = message;
-            
-            if (data.optimizing_planets) {
-                setOptimizingPlanetIds(new Set(data.optimizing_planets));
-            }
+      wsInstance.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          if (message.type === 'error') {
+              console.error("MCP Error:", message.message);
+              setStatusMessage(`Error: ${message.message}`);
+          } else if (message.type === 'update') {
+              const data = message.payload;
+              
+              if (data.optimizing_planets) {
+                  setOptimizingPlanetIds(new Set(data.optimizing_planets));
+              }
 
-            setGalaxies(prev => {
-                const updated = { ...prev };
-                if (data.galaxies) {
-                    Object.keys(data.galaxies).forEach(galaxyId => {
-                        const incomingGalaxy = data.galaxies[galaxyId];
-                        const existingGalaxy = prev[galaxyId];
+              setGalaxies(prev => {
+                  const updated = { ...prev };
+                  if (data.galaxies) {
+                      Object.keys(data.galaxies).forEach(galaxyId => {
+                          const incomingGalaxy = data.galaxies[galaxyId];
+                          const existingGalaxy = prev[galaxyId];
 
-                        if (existingGalaxy) {
-                            updated[galaxyId] = { 
-                                ...existingGalaxy, 
-                                ...incomingGalaxy,
-                                position: existingGalaxy.position 
-                            };
-                        } else {
-                            updated[galaxyId] = incomingGalaxy;
-                        }
-                    });
-                }
-                return updated;
-            });
-        }
-    };
+                          if (existingGalaxy) {
+                              // Preserve client-side state like position
+                              const newGalaxyData = {
+                                  ...existingGalaxy, 
+                                  ...incomingGalaxy,
+                                  position: existingGalaxy.position || incomingGalaxy.position
+                              };
+                              
+                              // Deep merge planets to preserve trace history and other states
+                              if (incomingGalaxy.planets && existingGalaxy.planets) {
+                                  newGalaxyData.planets = incomingGalaxy.planets.map(incPlanet => {
+                                      const exPlanet = existingGalaxy.planets.find(p => p.id === incPlanet.id);
+                                      return exPlanet ? { ...exPlanet, ...incPlanet } : incPlanet;
+                                  });
+                              }
+                              
+                              updated[galaxyId] = newGalaxyData;
+
+                          } else {
+                              updated[galaxyId] = incomingGalaxy;
+                          }
+                      });
+                  }
+                  return updated;
+              });
+          }
+      };
+    }
+    
+    connect();
     
     return () => {
-        ws.close();
+        if(ws.current) {
+            ws.current.close();
+        }
     };
   }, []);
+
+  useEffect(() => {
+    // Close sidebar if planet focus is lost
+    if (!view.focusedPlanet) {
+        setIsPlanetSidebarOpen(false);
+    }
+  }, [view.focusedPlanet]);
 
   const handleGalaxyMove = async (galaxyId, newPosition) => {
     // Update local state immediately for responsive UI
@@ -1138,6 +1268,32 @@ function App() {
     } catch (error) {
         console.error('Error updating galaxy position:', error);
     }
+  };
+
+  const handleDeployVariant = (variant) => {
+    const { id: galaxyId } = selectedObject.galaxy;
+    const { id: planetId, name: planetName } = selectedObject.planet;
+    if (!planetId || !galaxyId) return;
+
+    console.log(`Deploying variant ${variant.id} for planet ${planetId}`);
+    
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify({
+            type: 'deploy_variant',
+            payload: {
+                galaxyId: galaxyId,
+                planetId: planetId,
+                variant: variant,
+            }
+        }));
+        setStatusMessage(`Deploying variant for ${planetName}...`);
+        // The backend will send an update message that triggers the UI change
+    } else {
+        setStatusMessage('Error: Cannot deploy variant. WebSocket not connected.');
+    }
+    
+    // Close the sidebar and clear selection
+    setSelectedTrace(null);
   };
 
   const handleOnboard = (newAgent) => {
@@ -1186,9 +1342,11 @@ function App() {
       const planet = galaxy?.planets.find(p => p.id === planetId);
 
       if (galaxy && planet) {
+          setSelectedObject({ type: 'planet', galaxy, planet });
           // Keep galaxy view but add planet info for camera positioning
           setView({ type: 'galaxy', id: galaxyId, focusedPlanet: planetId });
           setSelectedTrace(null); // Clear selected trace when focusing on planet
+          setIsPlanetSidebarOpen(true); // Open sidebar
           setStatusMessage(`Focusing on planet ${planet.name} in ${galaxy.name} system.`);
       }
   };
@@ -1197,9 +1355,28 @@ function App() {
     if (view.type === 'planet' || view.focusedPlanet) {
       setSelectedTrace(trace);
     } else {
-      setSelectedObject(trace);
-      }
+        const { galaxy, planet } = findGalaxyAndPlanetForTrace(trace.id);
+        if(galaxy && planet) {
+            setSelectedObject({ type: 'trace', ...trace, galaxy, planet });
+        } else {
+            setSelectedObject(trace);
+        }
+    }
   };
+
+  const findGalaxyAndPlanetForTrace = (traceId) => {
+      for(const galaxy of Object.values(galaxies)) {
+          for(const planet of galaxy.planets) {
+              if(planet.traceHistory?.some(t => t.id === traceId)) {
+                  return { galaxy, planet };
+              }
+              if(planet.deployedVersion?.id === traceId) {
+                  return { galaxy, planet };
+              }
+          }
+      }
+      return { galaxy: null, planet: null };
+  }
 
   const handleAddTraceToPlanet = (galaxyId, planetId, newTrace) => {
     setGalaxies(prevGalaxies => {
@@ -1273,22 +1450,101 @@ function App() {
     }
   };
 
-  const filteredGalaxies = Object.values(galaxies).filter(g => {
-    if (!g) return false;
-    const passesHealth = healthFilter === 'all' || (g.planets?.some(p => p.status === healthFilter));
-    const passesSearch = searchQuery === '' || g.name?.toLowerCase().includes(searchQuery.toLowerCase()) || (g.planets?.some(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())));
-    return passesHealth && passesSearch;
-  });
+  const handleTogglePlanetStatus = async (galaxyId, planetId) => {
+    const planet = galaxies[galaxyId]?.planets.find(p => p.id === planetId);
+    if (!planet) return;
+    const newStatus = planet.status === 'active' ? 'inactive' : 'active';
 
-  const galaxiesForScene = view.type === 'galaxy' && view.id
-    ? filteredGalaxies.filter(g => g.id === view.id)
-    : filteredGalaxies;
+    const originalStatus = planet.status;
+
+    setGalaxies(prev => {
+        const newGalaxies = JSON.parse(JSON.stringify(prev));
+        const galaxy = newGalaxies[galaxyId];
+        const planetToUpdate = galaxy?.planets.find(p => p.id === planetId);
+        if (planetToUpdate) {
+            planetToUpdate.status = newStatus;
+        }
+        return newGalaxies;
+    });
+
+    try {
+        const response = await fetch(`http://localhost:8080/api/agent/${galaxyId}/planet/${planetId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus }),
+        });
+        if (!response.ok) {
+            throw new Error('Failed to update status on server');
+        }
+        setStatusMessage(`Planet "${planet.name}" status set to ${newStatus}.`);
+    } catch (error) {
+        console.error('Error toggling planet status:', error);
+        setStatusMessage(`Error updating status for planet "${planet.name}".`);
+        setGalaxies(prev => {
+            const newGalaxies = JSON.parse(JSON.stringify(prev));
+            const galaxy = newGalaxies[galaxyId];
+            const planetToUpdate = galaxy?.planets.find(p => p.id === planetId);
+            if (planetToUpdate) {
+                planetToUpdate.status = originalStatus;
+            }
+            return newGalaxies;
+        });
+    }
+  };
+
+  const getPlanetHealthStatus = (planet) => {
+    const score = planet?.deployedVersion?.evaluation?.score;
+    if (score === undefined || score === null) return null;
+    if (score >= 0.8) return 'good';
+    if (score >= 0.6) return 'medium';
+    return 'poor';
+  };
+
+  const processedGalaxies = useMemo(() => {
+      const searchLower = searchQuery.toLowerCase();
+      const newGalaxies = {};
+
+      for (const galaxyId in galaxies) {
+          const originalGalaxy = galaxies[galaxyId];
+          if (!originalGalaxy) continue;
+
+          const galaxyNameMatches = originalGalaxy.name.toLowerCase().includes(searchLower);
+
+          // Start with all planets if they exist, or an empty array
+          let planetsToShow = originalGalaxy.planets ? [...originalGalaxy.planets] : [];
+
+          // Apply health filter
+          if (healthFilter !== 'all') {
+              planetsToShow = planetsToShow.filter(p => getPlanetHealthStatus(p) === healthFilter);
+          }
+
+          // Apply search filter
+          if (searchQuery !== '' && !galaxyNameMatches) {
+              planetsToShow = planetsToShow.filter(p => p.name.toLowerCase().includes(searchLower));
+          }
+
+          // A galaxy is visible if its name matches the search, or if it has any planets left after filtering
+          if (searchQuery === '' || galaxyNameMatches || planetsToShow.length > 0) {
+              newGalaxies[galaxyId] = { ...originalGalaxy, planets: planetsToShow };
+          }
+      }
+      return newGalaxies;
+  }, [galaxies, healthFilter, searchQuery]);
+
 
   // Get current planet for planet view
-  const currentPlanet = view.type === 'planet' && view.galaxyId && view.id
-    ? galaxies[view.galaxyId]?.planets?.find(p => p.id === view.id)
-    : view.type === 'galaxy' && view.focusedPlanet
-    ? galaxies[view.id]?.planets?.find(p => p.id === view.focusedPlanet)
+  const currentGalaxy = view.type === 'galaxy' 
+    ? processedGalaxies[view.id]
+    : view.type === 'planet' 
+    ? processedGalaxies[view.galaxyId]
+    : null;
+    
+  const currentPlanet = currentGalaxy
+    ? (view.type === 'planet' 
+        ? currentGalaxy.planets?.find(p => p.id === view.id)
+        : view.focusedPlanet
+        ? currentGalaxy.planets?.find(p => p.id === view.focusedPlanet)
+        : null)
     : null;
 
     return (
@@ -1296,7 +1552,7 @@ function App() {
         <div className="canvas-container">
           <Canvas camera={{ position: [0, 80, 150], fov: 50 }}>
               <MainScene
-                  galaxies={galaxies}
+                  galaxies={processedGalaxies}
                   onGalaxyDoubleClick={handleGalaxyDoubleClick}
                   onPlanetDoubleClick={handlePlanetDoubleClick}
                   onSelect={handleTraceSelect}
@@ -1307,17 +1563,18 @@ function App() {
                   setOrbitControlsEnabled={setOrbitControlsEnabled}
                   view={view}
                   onAddTrace={handleAddTraceToPlanet}
+                  optimizingPlanetIds={optimizingPlanetIds}
               />
               <CameraController
                   view={view}
                   orbitControlsRef={orbitControlsRef}
-                  galaxies={galaxies}
+                  galaxies={processedGalaxies}
                   enabled={orbitControlsEnabled}
               />
           </Canvas>
         </div>
         <div className="ui-container">
-          <Breadcrumb view={view} galaxies={galaxies} onNavigate={setView} />
+          <Breadcrumb view={view} galaxies={processedGalaxies} onNavigate={setView} />
           {view.type !== 'planet' && !view.focusedPlanet && (
           <ControlPanel
               onFilterChange={setHealthFilter}
@@ -1329,16 +1586,13 @@ function App() {
               onOnboardClick={() => setIsOnboarding(true)}
           />
           )}
-          {currentPlanet ? (
+          {currentPlanet && isPlanetSidebarOpen ? (
             <PlanetSidebar
                 planet={currentPlanet}
                 selectedTrace={selectedTrace}
                 onClose={() => {
                     setSelectedTrace(null);
-                    // Clear planet focus and return to galaxy view
-                    if (view.focusedPlanet) {
-                        setView({ type: 'galaxy', id: view.id });
-                    }
+                    setIsPlanetSidebarOpen(false); // Only close the sidebar
                 }}
                 isOptimizing={optimizingPlanetIds.has(currentPlanet.id)}
                 optimizer={optimizerSettings[currentPlanet.id] || 'Few-shot Bayesian'}
@@ -1357,6 +1611,8 @@ function App() {
                 }}
                 onStartOptimization={() => handleStartPlanetOptimization(view.id, currentPlanet.id)}
                 onStopOptimization={() => handleStopPlanetOptimization(currentPlanet.id)}
+                onToggleStatus={() => handleTogglePlanetStatus(view.id, currentPlanet.id)}
+                onDeployVariant={handleDeployVariant}
             />
           ) : (
           <StatsBox 
