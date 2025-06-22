@@ -25,7 +25,7 @@ The Universe View is your landing page and the highest-level dashboard. It provi
     *   Double-clicking a galaxy's central star takes you into the **Galaxy View**.
     *   **Try For Fun!** Change the planet to Pokemon-planets or Cat-planets using the **Control Panel**
 
-👉 [**Universe View Demo**]([https://www.loom.com/share/12e8af9f254e456bbbe49bca7ceed528?sid=b4735a76-8925-4931-b6d5-e766c28595ad])
+👉 [**Universe View Demo**](https://www.loom.com/share/12e8af9f254e456bbbe49bca7ceed528?sid=b4735a76-8925-4931-b6d5-e766c28595ad)
 
 ### 🪐 Galaxy View
 
