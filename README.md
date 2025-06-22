@@ -53,7 +53,7 @@ The Planet View is the most granular level, offering powerful tools to inspect a
     *   **Auto-Optimization:** Start or stop an A/B testing session for this planet. The system will continuously generate and evaluate new variants.
     *   **Selected Variant:** Click on any orbiting trace node to see its metrics and full text. From here, you can click the **Deploy this Variant** button to make it the new active prompt for the planet.
 
-👉 [**Planet View Demo**]()
+👉 [**Planet View Demo**](https://www.loom.com/share/642e914f362a49afb06146675a9c5d8e?sid=237211a7-7a2e-4f71-9bd1-80d0dd33bd5d)
 
 ## 🛠️ Technology Stack
 
