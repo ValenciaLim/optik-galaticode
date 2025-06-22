@@ -4,11 +4,10 @@ Welcome to GalactiCode, a dynamic 3D monitoring and management dashboard for you
 
 ## ✨ Features
 
+*   **3-Tier View System:** Navigate from a high-level Universe View of all agents, down to a Galaxy View of a single agent's prompts, and finally to the Planet View to analyze individual prompt variants.
 *   **Interactive 3D Visualization:** Navigate your AI agent ecosystem in a fluid, intuitive 3D space powered by React Three Fiber.
 *   **Real-time Monitoring:** Live updates are pushed from the backend via WebSockets, ensuring the cockpit always reflects the current state of your agents.
 *   **Prompt A/B Testing:** Initiate on-the-fly optimization tasks to test different prompt variants and automatically identify top performers.
-*   **One-Click Deployment:** Seamlessly deploy a better-performing prompt variant with the click of a button.
-*   **Customizable Metrics:** Define how your backend evaluation metrics (like score, latency, or factuality) visually translate to the size and position of planets.
 
 ## 🔭 Core Views
 
@@ -20,7 +19,7 @@ The Universe View is your landing page and the highest-level dashboard. It provi
 
 *   **Representation:** Each star system in this view is a **Galaxy**, representing a distinct AI agent.
 *   **Interaction:**
-    *   Pan, zoom, and rotate to explore your universe of agents.
+    *   Pan, zoom, rotate, re-position to explore your universe of agents.
     *   The central star of each system indicates the agent's overall status (e.g., green for stable, yellow for optimizing, red for critical).
     *   Use the **Control Panel** to search for specific agents or filter them by health status.
     *   Clicking a galaxy's central star displays its metadata in the **Stats Box**.
