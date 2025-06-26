@@ -1,9 +1,0 @@
-# .vibeops/prompt-devops.yaml
-name: "Prompt DevOps Cycle"
-trigger:
-  on_commit: true
-steps:
-  - name: Optimize and Evaluate
-    run: python scripts/optimize_prompt.py
-  - name: Commit Winning Prompt
-    run: python scripts/commit_best_prompt.py
