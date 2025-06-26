@@ -38,7 +38,7 @@ The Galaxy View focuses on a single AI agent, providing a detailed look at its c
     *   Clicking the central star allows you to configure the agent's **Metric Mapping** in the Stats Box.
     *   Double-clicking a planet takes you into the **Planet View**.
 
-![Galaxy View](https://i.imgur.com/your-galaxy-view-image.png)
+👉 [**Galaxy View Demo**](https://www.loom.com/share/01be6e7a690c49fe90fb6032d416ca00?sid=0f672d9b-26a1-49fc-acf8-766cf79d551e)
 
 ### 🛰️ Planet View
 
@@ -53,12 +53,20 @@ The Planet View is the most granular level, offering powerful tools to inspect a
     *   **Auto-Optimization:** Start or stop an A/B testing session for this planet. The system will continuously generate and evaluate new variants.
     *   **Selected Variant:** Click on any orbiting trace node to see its metrics and full text. From here, you can click the **Deploy this Variant** button to make it the new active prompt for the planet.
 
-![Planet View](https://i.imgur.com/your-planet-view-image.png)
+👉 [**Planet View Demo**](https://www.loom.com/share/642e914f362a49afb06146675a9c5d8e?sid=237211a7-7a2e-4f71-9bd1-80d0dd33bd5d)
 
 ## 🛠️ Technology Stack
 
 *   **Frontend:** React, React Three Fiber (for 3D), Drei (helpers for R3F), Zustand (state management).
 *   **Backend:** Python, aiohttp (for the web server and WebSocket communication).
+
+## 🔮 Potential features to scale to
+*   Agent Collaboration Mapping: Visualize inter-agent communication or handoffs as connecting star paths.
+*   Time-Lapse Mode: Watch prompt evolution and performance changes over time in animated form.
+*   Custom Metrics Integration: Map any internal KPIs (e.g. cost, latency, satisfaction score) to visual elements.
+*   Version Control Overlay: Git-style history for prompt versions across galaxies and planets.
+*   Multi-user Collaboration: Shared cockpit sessions for real-time team exploration and optimization.
+  
 
 ## 🚀 Getting Started
 
